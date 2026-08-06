@@ -1,0 +1,64 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the lint/format/type toolchain: these move together and a
+      # failure in any of them is the same kind of failure to triage.
+      dev-tooling:
+        patterns:
+          - '@eslint/*'
+          - 'eslint'
+          - 'eslint-*'
+          - 'typescript-eslint'
+          - 'prettier'
+          - '@types/*'
+        update-types:
+          - minor
+          - patch
+      test-tooling:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+        update-types:
+          - minor
+          - patch
+      build-tooling:
+        patterns:
+          - 'tsup'
+          - 'tsx'
+          - 'publint'
+          - '@arethetypeswrong/*'
+          - '@changesets/*'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Playwright's browser build and the `mcr.microsoft.com/playwright` tag in
+      # the Dockerfile have to be bumped together, so this one is done by hand.
+      - dependency-name: 'playwright-core'
+      - dependency-name: 'playwright'
+      # TypeScript majors need typescript-eslint to support them first; its peer
+      # range currently caps below 6.1.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

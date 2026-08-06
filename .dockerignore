@@ -5,6 +5,7 @@ coverage
 .github
 .changeset
 tests
+scripts
 *.log
 *.tsbuildinfo
 .env

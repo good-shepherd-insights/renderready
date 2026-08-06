@@ -55,7 +55,10 @@
     "CHANGELOG.md"
   ],
   "engines": {
-    "node": ">=20.11"
+    "node": ">=22.12.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
@@ -69,6 +72,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:docker": "docker build -t renderready:local . && scripts/docker-smoke.sh renderready:local",
     "check:packaging": "publint --strict && attw --pack .",
     "verify": "npm run lint && npm run typecheck && npm run test",
     "prepublishOnly": "npm run build",
@@ -79,8 +83,7 @@
   },
   "dependencies": {
     "fastify": "^5.11.2",
-    "playwright-core": "^1.62.1",
-    "zod": "^4.4.3"
+    "playwright-core": "^1.62.1"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

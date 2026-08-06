@@ -9,12 +9,12 @@ const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { vers
 const define = { __RENDERREADY_VERSION__: JSON.stringify(version) };
 
 const shared = {
-  target: 'node20',
+  target: 'node22',
   platform: 'node' as const,
   sourcemap: true,
   define,
   // This is a library, not a bundle: leave the dependency graph external.
-  external: ['playwright-core', 'fastify', 'zod'],
+  external: ['playwright-core', 'fastify'],
 };
 
 export default defineConfig([
