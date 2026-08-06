@@ -23,14 +23,14 @@ describe('resolveConfig', () => {
     expect(config.render.pageLoadTimeout).toBe(20_000);
     expect(config.render.pageDoneCheckInterval).toBe(500);
     expect(config.render.waitAfterLastRequest).toBe(500);
-    expect(config.render.prerenderReadyDelay).toBe(1_000);
+    expect(config.render.renderReadyDelay).toBe(1_000);
     expect(config.render.followRedirects).toBe(false);
     expect(config.render.timeoutStatusCode).toBeNull();
     expect(config.render.renderErrorStatusCode).toBe(504);
     expect(config.render.userAgent).toBeNull();
     expect(config.render.viewportWidth).toBe(1440);
     expect(config.render.viewportHeight).toBe(718);
-    expect(config.render.originHeaders).toEqual({ 'X-Prerender': '1' });
+    expect(config.render.originHeaders).toEqual({ 'X-RenderReady': '1' });
     expect(config.render.removeScriptTags).toBe(true);
     expect(config.render.absoluteUrls).toBe(true);
     expect(config.render.metaStatusCode).toBe(true);
@@ -41,10 +41,10 @@ describe('resolveConfig', () => {
 
   it('does not hand out the shared default origin-headers object', () => {
     const config = resolveConfig({}, NO_ENV);
-    config.render.originHeaders['X-Prerender'] = 'tampered';
+    config.render.originHeaders['X-RenderReady'] = 'tampered';
 
-    expect(DEFAULT_ORIGIN_HEADERS['X-Prerender']).toBe('1');
-    expect(resolveConfig({}, NO_ENV).render.originHeaders).toEqual({ 'X-Prerender': '1' });
+    expect(DEFAULT_ORIGIN_HEADERS['X-RenderReady']).toBe('1');
+    expect(resolveConfig({}, NO_ENV).render.originHeaders).toEqual({ 'X-RenderReady': '1' });
   });
 
   it('reads values from the environment', () => {
@@ -79,13 +79,13 @@ describe('resolveConfig', () => {
     expect(config.render.followRedirects).toBe(false);
   });
 
-  // The prerender package used `option || env || default`, so a deliberate 0 or
-  // false silently fell through to the default. We use `??`.
+  // With `option || env || default` a deliberate 0 or false silently falls
+  // through to the default. We use `??`.
   it('honors falsy option values instead of falling through to defaults', () => {
-    const config = resolveConfig({ waitAfterLastRequest: 0, prerenderReadyDelay: 0 }, NO_ENV);
+    const config = resolveConfig({ waitAfterLastRequest: 0, renderReadyDelay: 0 }, NO_ENV);
 
     expect(config.render.waitAfterLastRequest).toBe(0);
-    expect(config.render.prerenderReadyDelay).toBe(0);
+    expect(config.render.renderReadyDelay).toBe(0);
   });
 
   it('treats an empty-string env var as unset', () => {

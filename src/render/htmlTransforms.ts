@@ -2,8 +2,7 @@
  * HTML post-processing.
  *
  * These are pure string transforms — no browser, no DOM, no framework — which
- * makes them cheap to test exhaustively. They replace the prerender package's
- * `removeScriptTags` and `httpHeaders` plugins.
+ * makes them cheap to test exhaustively.
  *
  * Regex-on-HTML is normally a mistake, but it is the right tool here: the input
  * is already-serialized output from a real browser engine (so it is well-formed),
@@ -28,24 +27,25 @@ const LINK_IMPORT = /<link[^>]+?rel=["']?import["']?[^>]*?>/gi;
  */
 const ROOT_RELATIVE_ATTR = /(?<![-\w])(src|href)=(["'])\/(?!\/)([^"']*)\2/gi;
 
-const STATUS_CODE_META =
-  /<meta[^<>]*(?:name=["']prerender-status-code["'][^<>]*content=["'](\d{3})["']|content=["'](\d{3})["'][^<>]*name=["']prerender-status-code["'])[^<>]*>/i;
+/** Any `<meta>` tag. Attributes are parsed separately rather than in one pattern. */
+const META_TAG = /<meta\b[^>]*>/gi;
 
-const HEADER_META =
-  /<meta[^<>]*(?:name=["']prerender-header["'][^<>]*content=["']([^"']*?): ?([^"']*?)["']|content=["']([^"']*?): ?([^"']*?)["'][^<>]*name=["']prerender-header["'])[^<>]*>/gi;
+/** One `name="value"` attribute, accepting double, single, or no quotes. */
+const ATTRIBUTE = /([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+
+const STATUS_CODE_DIRECTIVE = 'renderready-status-code';
+const HEADER_DIRECTIVE = 'renderready-header';
 
 /**
  * Strip `<script>` tags, preserving `application/ld+json` structured data —
  * that is content search engines consume, not behaviour.
  *
- * Also removes `<link rel="import">`.
+ * Also removes `<link rel="import">`, which can pull in further scripts.
  *
- * Fixes two bugs in the implementation this replaces, which looped over
- * `String.match()` results and called `content.replace(match, '')` per match:
- * duplicate identical script blocks only lost their first occurrence, and the
- * `<link rel="import">` regex was missing its `g` flag so only the first was
- * ever removed. A single regex pass with a replacer function has neither
- * problem.
+ * A single regex pass with a replacer function, deliberately: looping over
+ * `String.match()` results and calling `content.replace(match, '')` per match
+ * looks equivalent but is not — `replace` with a string argument only replaces
+ * the first occurrence, so duplicate identical script blocks survive.
  */
 export function removeScriptTags(html: string): string {
   return html
@@ -77,20 +77,41 @@ export function absolutizeUrls(html: string, pageUrl: string): string {
 }
 
 export interface MetaDirectives {
-  /** From `<meta name="prerender-status-code">`, if present and valid. */
+  /** From `<meta name="renderready-status-code">`, if present and valid. */
   statusCode?: number;
-  /** From every `<meta name="prerender-header" content="Key: Value">`. */
+  /** From every `<meta name="renderready-header" content="Key: Value">`. */
   headers: Record<string, string>;
   /** The HTML with those meta tags removed. */
   html: string;
 }
 
+/** Parse a tag's attributes into a lower-cased name to raw-value map. */
+function parseAttributes(tag: string): Map<string, string> {
+  const attributes = new Map<string, string>();
+  // A fresh instance per call: a module-level global regex carries `lastIndex`
+  // between calls, which would make results depend on call order.
+  const pattern = new RegExp(ATTRIBUTE.source, ATTRIBUTE.flags);
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(tag)) !== null) {
+    const name = match[1]?.toLowerCase();
+    const value = match[2] ?? match[3] ?? match[4] ?? '';
+    if (name !== undefined && !attributes.has(name)) {
+      attributes.set(name, value);
+    }
+  }
+  return attributes;
+}
+
 /**
- * Extract and strip the `prerender-status-code` / `prerender-header` meta tags.
+ * Extract and strip the `renderready-status-code` / `renderready-header` meta tags.
  *
- * This is how a client-side app reports a soft 404 or a redirect that only its
- * router knows about. Kept on the `prerender-` prefix rather than renamed, so
- * existing applications work against this server unchanged.
+ * This is how a client-side application reports a soft 404, or a redirect that
+ * only its own router knows about — the server has no other way to learn that
+ * `/products/does-not-exist` should not be indexed.
+ *
+ * Attributes are parsed properly rather than matched with one large alternating
+ * pattern, so attribute order and quoting style fall out for free instead of
+ * needing a branch each.
  *
  * Only the `<head>` is scanned, so body content that happens to look like one of
  * these tags cannot spoof a status code.
@@ -101,29 +122,46 @@ export function extractMetaDirectives(html: string): MetaDirectives {
 
   const headers: Record<string, string> = {};
   let statusCode: number | undefined;
-  let result = html;
+  const consumed: string[] = [];
 
-  const statusMatch = STATUS_CODE_META.exec(head);
-  if (statusMatch) {
-    const raw = statusMatch[1] ?? statusMatch[2];
-    const parsed = raw === undefined ? Number.NaN : Number(raw);
-    if (Number.isInteger(parsed) && parsed >= 100 && parsed <= 599) {
-      statusCode = parsed;
+  const tags = new RegExp(META_TAG.source, META_TAG.flags);
+  let tag: RegExpExecArray | null;
+  while ((tag = tags.exec(head)) !== null) {
+    const attributes = parseAttributes(tag[0]);
+    const name = attributes.get('name');
+    const content = attributes.get('content');
+    if (content === undefined) {
+      continue;
     }
-    result = result.replace(statusMatch[0], '');
+
+    if (name === STATUS_CODE_DIRECTIVE) {
+      // First one wins; a later tag cannot override an earlier decision.
+      if (statusCode === undefined) {
+        const parsed = Number(content);
+        if (Number.isInteger(parsed) && parsed >= 100 && parsed <= 599) {
+          statusCode = parsed;
+        }
+      }
+      consumed.push(tag[0]);
+      continue;
+    }
+
+    if (name === HEADER_DIRECTIVE) {
+      const separator = content.indexOf(':');
+      if (separator > 0) {
+        const headerName = content.slice(0, separator).trim();
+        const headerValue = content.slice(separator + 1).trim();
+        if (headerName !== '') {
+          headers[headerName] = decodeHtmlEntities(headerValue);
+        }
+      }
+      consumed.push(tag[0]);
+    }
   }
 
-  // `exec` in a loop needs its own regex instance: HEADER_META is a module-level
-  // global regex, so a shared `lastIndex` would leak between calls.
-  const headerPattern = new RegExp(HEADER_META.source, HEADER_META.flags);
-  let headerMatch: RegExpExecArray | null;
-  while ((headerMatch = headerPattern.exec(head)) !== null) {
-    const name = headerMatch[1] ?? headerMatch[3];
-    const value = headerMatch[2] ?? headerMatch[4];
-    if (name !== undefined && name !== '' && value !== undefined) {
-      headers[name] = decodeHtmlEntities(value);
-    }
-    result = result.replace(headerMatch[0], '');
+  let result = html;
+  for (const directive of consumed) {
+    result = result.replace(directive, '');
   }
 
   return statusCode === undefined
@@ -211,17 +249,17 @@ export interface HtmlTransformOptions {
 
 export interface HtmlTransformResult {
   html: string;
-  /** Present only when a `prerender-status-code` meta tag asked for one. */
+  /** Present only when a `renderready-status-code` meta tag asked for one. */
   statusCode?: number;
-  /** Headers requested via `prerender-header` meta tags. */
+  /** Headers requested via `renderready-header` meta tags. */
   headers: Record<string, string>;
 }
 
 /**
- * Run the enabled transforms in the order the prerender package fired its
- * `pageLoaded` plugins: meta directives are read before scripts are stripped
- * (so a `<script>` can't hide a directive from us), then scripts, then URLs,
- * then provenance tags last so they survive untouched.
+ * Run the enabled transforms in a deliberate order: meta directives first, so a
+ * directive can never be removed as collateral damage when scripts go; then
+ * scripts; then URL rewriting; then provenance tags last, so nothing downstream
+ * strips them back out.
  */
 export function applyHtmlTransforms(
   html: string,

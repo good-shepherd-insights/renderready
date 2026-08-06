@@ -7,6 +7,7 @@ import Fastify, {
   type FastifyRequest,
 } from 'fastify';
 
+import { resolveConfig } from '../config.js';
 import { errorMessage, isRenderReadyError } from '../errors.js';
 import type { Logger } from '../logger.js';
 import { createRenderer, type Renderer, type RendererOptions } from '../render/renderer.js';
@@ -66,12 +67,17 @@ export interface RenderReadyServer {
 /**
  * Build the HTTP server around a renderer.
  *
- * Two endpoints and nothing else: `/render` and `/health`. The legacy
- * `GET /<url>` catch-all from the prerender package is deliberately absent.
+ * Two endpoints and nothing else: `/render` and `/health`. There is deliberately
+ * no catch-all route that treats an arbitrary request path as a URL to render —
+ * an unknown path gets an honest 404.
  */
 export function createServer(options: ServerOptions = {}): RenderReadyServer {
+  // Resolved from this function's own options, not read off the renderer. When a
+  // renderer is injected it brings its own config, and taking the listen address
+  // from there would silently ignore the `port` and `host` passed here.
+  const config = resolveConfig(options);
   const renderer = options.renderer ?? createRenderer(options);
-  const { config, logger } = renderer;
+  const logger = options.logger ?? renderer.logger;
 
   const fastify = Fastify({
     // We do our own logging through the injectable logger, which also means
@@ -87,6 +93,12 @@ export function createServer(options: ServerOptions = {}): RenderReadyServer {
       },
     },
   });
+
+  const renderContext: RenderContext = {
+    renderer,
+    logger,
+    renderErrorStatusCode: config.render.renderErrorStatusCode,
+  };
 
   if (config.access.basicAuth) {
     installBasicAuth(fastify, config.access.basicAuth, logger);
@@ -108,13 +120,13 @@ export function createServer(options: ServerOptions = {}): RenderReadyServer {
   fastify.get<{ Querystring: RenderRequest }>(
     '/render',
     { schema: { querystring: renderRequestSchema } },
-    (request, reply) => handleRender(request.query, reply, renderer),
+    (request, reply) => handleRender(request.query, reply, renderContext),
   );
 
   fastify.post<{ Body: RenderRequest }>(
     '/render',
     { schema: { body: renderRequestSchema } },
-    (request, reply) => handleRender(request.body, reply, renderer),
+    (request, reply) => handleRender(request.body, reply, renderContext),
   );
 
   // Fastify's default 400 for a schema failure is fine, but a bad `url` should
@@ -181,13 +193,18 @@ export async function start(options: ServerOptions = {}): Promise<RenderReadySer
   return server;
 }
 
+interface RenderContext {
+  renderer: Renderer;
+  logger: Logger;
+  /** Status for a failure whose HTTP mapping is not intrinsic to the error. */
+  renderErrorStatusCode: number;
+}
+
 async function handleRender(
   input: RenderRequest,
   reply: FastifyReply,
-  renderer: Renderer,
+  { renderer, logger, renderErrorStatusCode }: RenderContext,
 ): Promise<FastifyReply> {
-  const { config, logger } = renderer;
-
   try {
     const result = await renderer.render(input.url, {
       ...(input.width !== undefined ? { width: input.width } : {}),
@@ -213,14 +230,14 @@ async function handleRender(
     return reply.code(result.statusCode).send(result.html);
   } catch (error) {
     const status = isRenderReadyError(error)
-      ? (error.statusCode ?? config.render.renderErrorStatusCode)
-      : config.render.renderErrorStatusCode;
+      ? (error.statusCode ?? renderErrorStatusCode)
+      : renderErrorStatusCode;
     const message = errorMessage(error);
 
     logger.warn('Render failed', { url: input.url, status, error: message });
 
-    // The equivalent of the prerender package's x-prerender-504-reason: the
-    // status alone rarely says enough to debug from the caller's side.
+    // A bare status rarely says enough to debug a failure from the caller's
+    // side, and the response body may be consumed by something that ignores it.
     reply.header('x-renderready-error', sanitizeHeaderValue(message));
 
     if (status === 503) {

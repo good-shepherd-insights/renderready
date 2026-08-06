@@ -56,7 +56,7 @@ describe('readiness', () => {
   });
 
   // This is the case the service this was extracted from got wrong: a page that
-  // never mentions prerenderReady must still render promptly, via network quiet.
+  // never mentions renderReady must still render promptly, via network quiet.
   it('renders a page that never declares the flag', async () => {
     const result = await renderer.render(`${origin.url}/no-flag`);
 
@@ -132,7 +132,7 @@ describe('status codes', () => {
     const result = await renderer.render(`${origin.url}/meta-404`);
 
     expect(result.statusCode).toBe(404);
-    expect(result.html).not.toContain('prerender-status-code');
+    expect(result.html).not.toContain('renderready-status-code');
     expect(result.html).toContain('No such page');
   });
 
@@ -141,7 +141,7 @@ describe('status codes', () => {
 
     expect(result.statusCode).toBe(302);
     expect(result.headers.Location).toBe('https://example.test/elsewhere');
-    expect(result.html).not.toContain('prerender-header');
+    expect(result.html).not.toContain('renderready-header');
   });
 });
 
@@ -190,10 +190,10 @@ describe('html transforms', () => {
 });
 
 describe('request behaviour', () => {
-  it('sends X-Prerender to the origin so an app can detect it', async () => {
+  it('sends X-RenderReady to the origin so an app can detect it', async () => {
     const result = await renderer.render(`${origin.url}/echo-headers`);
 
-    expect(result.html).toContain('x-prerender:1');
+    expect(result.html).toContain('x-renderready:1');
   });
 
   it('reports the origin response headers', async () => {

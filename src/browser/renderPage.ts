@@ -92,7 +92,7 @@ export async function renderPage(
     const rawStatus = response?.status() ?? 0;
     const headers = response ? await safeHeaders(response) : {};
 
-    const { timedOut, usedPrerenderReady } = await waitForPageReady(
+    const { timedOut, usedReadyFlag } = await waitForPageReady(
       page,
       tracker,
       options.readiness,
@@ -110,7 +110,7 @@ export async function renderPage(
       url,
       status: rawStatus,
       timedOut,
-      usedPrerenderReady,
+      usedReadyFlag,
       bytes: html.length,
     });
 

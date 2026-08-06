@@ -28,10 +28,10 @@ const READY_PAGE = page(
   '<title>Ready</title>',
   `<div id="app">loading</div>
    <script>
-     window.prerenderReady = false;
+     window.renderReady = false;
      setTimeout(function () {
        document.getElementById('app').textContent = 'content from javascript';
-       window.prerenderReady = true;
+       window.renderReady = true;
      }, 150);
    </script>`,
 );
@@ -40,7 +40,7 @@ const READY_PAGE = page(
 const NEVER_READY_PAGE = page(
   '<title>Never ready</title>',
   `<div id="app">partial content</div>
-   <script>window.prerenderReady = false;</script>`,
+   <script>window.renderReady = false;</script>`,
 );
 
 /** Never mentions the flag: readiness has to come from network quiet. */
@@ -79,14 +79,14 @@ const RELATIVE_URL_PAGE = page(
 );
 
 const META_404_PAGE = page(
-  '<title>Not found</title><meta name="prerender-status-code" content="404">',
+  '<title>Not found</title><meta name="renderready-status-code" content="404">',
   '<h1>No such page</h1>',
 );
 
 const META_REDIRECT_PAGE = page(
   `<title>Moved</title>
-   <meta name="prerender-status-code" content="302">
-   <meta name="prerender-header" content="Location: https://example.test/elsewhere">`,
+   <meta name="renderready-status-code" content="302">
+   <meta name="renderready-header" content="Location: https://example.test/elsewhere">`,
   '<h1>Moved</h1>',
 );
 
@@ -100,7 +100,7 @@ const COOKIE_PAGE = page(
 );
 
 const HEADER_ECHO_PAGE = (headerValue: string): string =>
-  page('<title>Headers</title>', `<div id="app">x-prerender:${headerValue}</div>`);
+  page('<title>Headers</title>', `<div id="app">x-renderready:${headerValue}</div>`);
 
 export async function startFixtureServer(): Promise<FixtureServer> {
   const requests: string[] = [];
@@ -138,7 +138,7 @@ export async function startFixtureServer(): Promise<FixtureServer> {
         });
         return response.end(COOKIE_PAGE);
       case '/echo-headers':
-        return html(HEADER_ECHO_PAGE(String(request.headers['x-prerender'] ?? 'absent')));
+        return html(HEADER_ECHO_PAGE(String(request.headers['x-renderready'] ?? 'absent')));
       case '/data.json':
         response.writeHead(200, { 'content-type': 'application/json' });
         return response.end(JSON.stringify({ message: 'content from fetch' }));

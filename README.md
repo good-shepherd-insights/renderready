@@ -23,15 +23,13 @@ curl 'http://localhost:3000/render?url=https%3A%2F%2Fexample.com%2F'
 
 ## Why this exists
 
-[`prerender/prerender`](https://github.com/prerender/prerender) has been the default answer for
-serving JavaScript sites to search engines for a decade. Its README now says the repository
-**will be archived and made private on June 4, 2026**, and it still drives Chrome over raw CDP via
-`chrome-remote-interface`.
+Search engines and social crawlers still do a poor job of client-rendered pages, and the
+long-standing open-source answers to that are either unmaintained or wrap Chrome over hand-rolled
+DevTools Protocol calls.
 
-renderready is a modern replacement: Playwright instead of hand-rolled CDP, TypeScript throughout,
-a browser lifecycle that survives crashes, and the same `window.prerenderReady` and
-`<meta name="prerender-status-code">` conventions — so an application already instrumented for
-prerender works against this server unchanged.
+renderready is a current-generation take: Playwright for the browser, TypeScript throughout, a
+browser lifecycle that survives crashes and reclaims memory on its own, and readiness detection that
+works on sites you do not control instead of only ones you have instrumented.
 
 ## Contents
 
@@ -46,15 +44,13 @@ prerender works against this server unchanged.
 - [Docker](#docker)
 - [Concurrency and capacity](#concurrency-and-capacity)
 - [Security](#security)
-- [Migrating from `prerender`](#migrating-from-prerender)
+- [Compatibility](#compatibility)
 
 ## Use cases
 
-**SEO for client-rendered sites.** Put renderready behind a check for crawler user agents and serve
-it the prerendered HTML while real users get your normal app. Any of the existing
-[prerender middlewares](https://github.com/prerender/prerender#middleware) will work — point
-`PRERENDER_SERVICE_URL` at your instance. Note that renderready serves `/render?url=…` only, so
-middleware that uses the legacy `GET /<url>` form needs the URL passed as a query parameter.
+**SEO for client-rendered sites.** Detect crawler user agents at your edge or in middleware, and
+proxy those requests to renderready while real users get your normal app. Because the response
+carries the origin's status code, a soft 404 stays a 404 and a moved page stays a redirect.
 
 **Scraping and content extraction.** `createRenderer()` gives you the render loop with no HTTP
 layer, which is what you want inside a worker or a build step.
@@ -186,20 +182,20 @@ one applies is up to the page.
 (default 500ms). This is the only signal available for a site you don't control, so it is the
 fallback rather than the exception.
 
-**`window.prerenderReady`** — if your page defines it as a boolean, it is authoritative. Nothing is
+**`window.renderReady`** — if your page defines it as a boolean, it is authoritative. Nothing is
 captured until it turns `true`. Once it does, capture happens as soon as the network is quiet _or_
-`prerenderReadyDelay` (default 1000ms) elapses, whichever comes first — so an app that knows it is
+`renderReadyDelay` (default 1000ms) elapses, whichever comes first — so an app that knows it is
 finished can cut a render short instead of waiting out its own trailing analytics requests.
 
 ```html
 <script>
-  window.prerenderReady = false;
+  window.renderReady = false;
 </script>
 ```
 
 ```js
 // …once your data has loaded and the DOM is final:
-window.prerenderReady = true;
+window.renderReady = true;
 ```
 
 If you never define the flag, nothing breaks — network quiet handles it.
@@ -220,20 +216,20 @@ Resolved in increasing order of specificity:
 2. `renderErrorStatusCode` (default `504`) if there was no response at all.
 3. `timeoutStatusCode`, if the render timed out and you configured one. Unset by default, meaning
    the origin's status is kept.
-4. `<meta name="prerender-status-code">`, if the page declared one — your app knows its own routing
+4. `<meta name="renderready-status-code">`, if the page declared one — your app knows its own routing
    better than our timeout heuristic does.
 
-Soft 404s and client-side redirects are declared from the page, exactly as in `prerender`:
+Soft 404s and client-side redirects are declared from the page itself:
 
 ```html
 <!-- serve this route as a 404 so it is not indexed -->
-<meta name="prerender-status-code" content="404" />
+<meta name="renderready-status-code" content="404" />
 ```
 
 ```html
 <!-- serve this route as a redirect -->
-<meta name="prerender-status-code" content="302" />
-<meta name="prerender-header" content="Location: https://example.com/new" />
+<meta name="renderready-status-code" content="302" />
+<meta name="renderready-header" content="Location: https://example.com/new" />
 ```
 
 Both tags are read from `<head>` only — body content cannot spoof a status code — and stripped from
@@ -274,19 +270,19 @@ routing every request through Node to abort it.
 
 ### Rendering
 
-| Option                  | Env                        | Default                |                                                             |
-| ----------------------- | -------------------------- | ---------------------- | ----------------------------------------------------------- |
-| `pageLoadTimeout`       | `PAGE_LOAD_TIMEOUT`        | `20000`                | Budget for the whole render.                                |
-| `pageDoneCheckInterval` | `PAGE_DONE_CHECK_INTERVAL` | `500`                  | Readiness poll interval.                                    |
-| `waitAfterLastRequest`  | `WAIT_AFTER_LAST_REQUEST`  | `500`                  | Network-quiet window.                                       |
-| `prerenderReadyDelay`   | `PRERENDER_READY_DELAY`    | `1000`                 | Grace period after the flag turns true.                     |
-| `followRedirects`       | `FOLLOW_REDIRECTS`         | `false`                |                                                             |
-| `timeoutStatusCode`     | `TIMEOUT_STATUS_CODE`      | `null`                 | `null` keeps the origin's status.                           |
-| `renderErrorStatusCode` | `RENDER_ERROR_STATUS_CODE` | `504`                  |                                                             |
-| `userAgent`             | `USER_AGENT`               | —                      | Unset means Chromium's own, with `Headless` removed.        |
-| `viewportWidth`         | `VIEWPORT_WIDTH`           | `1440`                 |                                                             |
-| `viewportHeight`        | `VIEWPORT_HEIGHT`          | `718`                  |                                                             |
-| `originHeaders`         | —                          | `{'X-Prerender': '1'}` | Sent **to the origin** so your app can detect the renderer. |
+| Option                  | Env                        | Default                  |                                                             |
+| ----------------------- | -------------------------- | ------------------------ | ----------------------------------------------------------- |
+| `pageLoadTimeout`       | `PAGE_LOAD_TIMEOUT`        | `20000`                  | Budget for the whole render.                                |
+| `pageDoneCheckInterval` | `PAGE_DONE_CHECK_INTERVAL` | `500`                    | Readiness poll interval.                                    |
+| `waitAfterLastRequest`  | `WAIT_AFTER_LAST_REQUEST`  | `500`                    | Network-quiet window.                                       |
+| `renderReadyDelay`      | `RENDER_READY_DELAY`       | `1000`                   | Grace period after the flag turns true.                     |
+| `followRedirects`       | `FOLLOW_REDIRECTS`         | `false`                  |                                                             |
+| `timeoutStatusCode`     | `TIMEOUT_STATUS_CODE`      | `null`                   | `null` keeps the origin's status.                           |
+| `renderErrorStatusCode` | `RENDER_ERROR_STATUS_CODE` | `504`                    |                                                             |
+| `userAgent`             | `USER_AGENT`               | —                        | Unset means Chromium's own, with `Headless` removed.        |
+| `viewportWidth`         | `VIEWPORT_WIDTH`           | `1440`                   |                                                             |
+| `viewportHeight`        | `VIEWPORT_HEIGHT`          | `718`                    |                                                             |
+| `originHeaders`         | —                          | `{'X-RenderReady': '1'}` | Sent **to the origin** so your app can detect the renderer. |
 
 ### Output
 
@@ -294,7 +290,7 @@ routing every request through Node to abort it.
 | ------------------ | -------------------- | ------- | ------------------------------------------------ |
 | `removeScriptTags` | `REMOVE_SCRIPT_TAGS` | `true`  | Strip `<script>`, keeping `application/ld+json`. |
 | `absoluteUrls`     | `ABSOLUTE_URLS`      | `true`  | Rewrite root-relative `src`/`href` to absolute.  |
-| `metaStatusCode`   | `META_STATUS_CODE`   | `true`  | Honor the `prerender-*` meta tags.               |
+| `metaStatusCode`   | `META_STATUS_CODE`   | `true`  | Honor the `renderready-*` meta tags.             |
 | `injectRenderMeta` | `INJECT_RENDER_META` | `false` | Add render-id/timestamp meta tags.               |
 
 Scripts are stripped because the page is already rendered: leaving your framework's bootstrap in
@@ -339,8 +335,8 @@ createRenderer({ logger });
 ## Hooks
 
 Hooks are the escape hatch for what a package cannot anticipate — caching, metrics, per-site
-fixups. The things `prerender` shipped as plugin modules are configuration flags above, because
-nearly everyone wants them and nobody wants to wire them up.
+fixups. The behaviours nearly everyone wants are configuration flags above instead, because nobody
+should have to wire those up by hand.
 
 ```ts
 createRenderer({
@@ -353,7 +349,7 @@ createRenderer({
     // The page exists but has not navigated. addInitScript, cookies, routes.
     onPageCreated: async page => {
       await page.addInitScript(() => {
-        window.__PRERENDERING__ = true;
+        window.__RENDERREADY__ = true;
       });
     },
 
@@ -421,7 +417,7 @@ configurations. See [Security](#security).
 ## Concurrency and capacity
 
 **renderready does not limit concurrency.** Renders run in parallel, each in its own browser
-context, bounded only by what Chromium tolerates — the same as `prerender`. Rate limiting, queueing
+context, bounded only by what Chromium tolerates. Rate limiting, queueing
 and back-pressure belong to whatever sits in front of the service, where you can size them against
 your actual traffic.
 
@@ -457,34 +453,21 @@ its own container with a seccomp profile and no network access beyond what it ne
 To report a vulnerability, please open a draft security advisory on GitHub rather than a public
 issue.
 
-## Migrating from `prerender`
+## Compatibility
 
-What is the same:
+Deliberately **not** included, so you know what to expect:
 
-- `window.prerenderReady` semantics, including the accelerator behaviour.
-- `<meta name="prerender-status-code">` and `<meta name="prerender-header">`.
-- `X-Prerender: 1` sent to your origin.
-- Scripts stripped, `application/ld+json` preserved, root-relative URLs made absolute.
-- Redirects returned rather than followed.
-- Default viewport `1440×718`, default timeout 20s, default quiet window 500ms.
+| Not supported                       | Why                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------ |
+| A catch-all `GET /<url>` route      | Ambiguous, and it makes every typo look like a render request. Use `/render?url=`.   |
+| Screenshots, PDF, HAR output        | Out of scope for v1. Playwright makes them easy to add on top of `createRenderer()`. |
+| `_escaped_fragment_` query handling | Google retired the AJAX crawling scheme in 2015.                                     |
+| A built-in cache                    | See [Adding a cache](#adding-a-cache) — an HTTP cache in front is better.            |
+| A concurrency limiter               | See [Concurrency and capacity](#concurrency-and-capacity).                           |
 
-What changed:
-
-| `prerender`                         | renderready                                 |
-| ----------------------------------- | ------------------------------------------- |
-| `GET /<url>` and `GET /render?url=` | `GET /render?url=` and `POST /render` only  |
-| `renderType=png\|jpeg\|pdf\|har`    | HTML only                                   |
-| Plugin modules and `server.use()`   | Config flags plus four [hooks](#hooks)      |
-| `_escaped_fragment_` handling       | Removed — Google retired the scheme in 2015 |
-| Set-Cookie forwarded to the caller  | Dropped                                     |
-| `ALLOWED_DOMAINS` substring match   | Hostname-label match                        |
-| `x-prerender-504-reason`            | `x-renderready-error`                       |
-| Chrome must already be installed    | `npx playwright install chromium`           |
-
-Environment variables are mostly unchanged: `PORT`, `PAGE_LOAD_TIMEOUT`, `WAIT_AFTER_LAST_REQUEST`,
-`PAGE_DONE_CHECK_INTERVAL`, `FOLLOW_REDIRECTS`, `TIMEOUT_STATUS_CODE`, `ALLOWED_DOMAINS`,
-`BASIC_AUTH_USERNAME`, `BASIC_AUTH_PASSWORD` all mean what they did. `CHROME_LOCATION` is now
-`CHROME_PATH`, and `RENDERING_ERROR_STATUS_CODE` is now `RENDER_ERROR_STATUS_CODE`.
+If you are moving from another prerendering service, the two things to check are that your
+application sets `window.renderReady` (or relies on network quiet, which needs no changes) and that
+any soft-404 meta tags use the `renderready-` prefix documented above.
 
 ## Requirements
 
@@ -493,5 +476,4 @@ Node.js 20.11 or newer, and a Chromium build — either Playwright's
 
 ## License
 
-MIT. Portions of the HTML post-processing and the page-readiness semantics derive from
-[prerender](https://github.com/prerender/prerender), also MIT.
+MIT © Luka Pozega

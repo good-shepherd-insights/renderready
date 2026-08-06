@@ -44,8 +44,9 @@ function stubRenderer(
 
 let server: RenderReadyServer | undefined;
 
-function build(renderer: Renderer): RenderReadyServer {
-  server = createServer({ renderer });
+function build(renderer: Renderer, options: RenderReadyOptions = {}): RenderReadyServer {
+  // Port 0 so nothing in this file can collide with a real port, or with itself.
+  server = createServer({ renderer, port: 0, ...options });
   return server;
 }
 
@@ -292,8 +293,8 @@ describe('GET /render', () => {
       expect(response.headers['content-length']).toBe(String(Buffer.byteLength('<html>ok</html>')));
     });
 
-    // Forwarding the origin's session cookies to whoever asked for a render is a
-    // real leak; the prerender package passed them straight through.
+    // Forwarding the origin's session cookies to whoever asked for a render
+    // would be a real leak.
     it('never forwards set-cookie', async () => {
       const active = build(withHeaders({ 'set-cookie': 'session=secret; HttpOnly' }));
 
@@ -397,15 +398,14 @@ describe('GET /render', () => {
     });
 
     it('maps a render failure to the configured renderErrorStatusCode', async () => {
-      const renderer = stubRenderer(
-        {
+      const active = build(
+        stubRenderer({
           render: vi.fn(async () => {
             throw new RenderError('navigation failed');
           }),
-        },
+        }),
         { renderErrorStatusCode: 502 },
       );
-      const active = build(renderer);
 
       const response = await active.fastify.inject({
         method: 'GET',
@@ -427,8 +427,7 @@ describe('GET /render', () => {
       expect(response.json()).toMatchObject({ error: 'RENDER_FAILED' });
     });
 
-    // The equivalent of the prerender package's x-prerender-504-reason: a bare
-    // status rarely says enough to debug from the caller's side.
+    // A bare status rarely says enough to debug a failure from the caller's side.
     it('reports the reason in a response header', async () => {
       const active = build(failingWith(new RenderError('net::ERR_NAME_NOT_RESOLVED')));
 
@@ -480,8 +479,8 @@ describe('POST /render', () => {
 });
 
 describe('routing', () => {
-  // The prerender package served GET /<url>; that catch-all is deliberately gone,
-  // so an unknown path must be an honest 404 rather than an attempted render.
+  // There is deliberately no catch-all route, so an unknown path must be an
+  // honest 404 rather than an attempt to render whatever was in the path.
   it('does not treat an arbitrary path as a URL to render', async () => {
     const renderer = stubRenderer();
     const active = build(renderer);
@@ -517,7 +516,7 @@ describe('basic auth', () => {
   const credentials = { username: 'crawler', password: 'secret' };
   const encode = (value: string): string => `Basic ${Buffer.from(value).toString('base64')}`;
 
-  const authServer = () => build(stubRenderer({}, { basicAuth: credentials }));
+  const authServer = () => build(stubRenderer(), { basicAuth: credentials });
 
   it('allows a request with the right credentials', async () => {
     const active = authServer();
@@ -597,8 +596,7 @@ describe('basic auth', () => {
 describe('lifecycle', () => {
   it('starts the renderer on listen and stops it on close', async () => {
     const renderer = stubRenderer();
-    const active = createServer({ renderer, port: 0 });
-    server = active;
+    const active = build(renderer);
 
     const url = await active.listen();
     expect(renderer.start).toHaveBeenCalledTimes(1);
@@ -612,8 +610,7 @@ describe('lifecycle', () => {
 
   it('is safe to close twice', async () => {
     const renderer = stubRenderer();
-    const active = createServer({ renderer, port: 0 });
-    server = active;
+    const active = build(renderer);
     await active.listen();
 
     await active.close();
@@ -624,8 +621,7 @@ describe('lifecycle', () => {
 
   it('serves real HTTP requests once listening', async () => {
     const renderer = stubRenderer();
-    const active = createServer({ renderer, port: 0, host: '127.0.0.1' });
-    server = active;
+    const active = build(renderer, { host: '127.0.0.1' });
     const url = await active.listen();
 
     const response = await fetch(`${url}/health`);

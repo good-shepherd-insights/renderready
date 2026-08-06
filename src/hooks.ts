@@ -3,12 +3,10 @@ import type { Page } from 'playwright-core';
 /**
  * Lifecycle hooks.
  *
- * These replace the prerender package's plugin system. The behaviours it shipped
- * as plugins — stripping scripts, reading meta status codes, allow/block lists,
- * basic auth — are configuration flags here, because they are things nearly
- * everyone wants and nobody wants to wire up. Hooks are the escape hatch for the
- * things a package cannot anticipate: caching, metrics, authentication schemes,
- * per-site fixups.
+ * The behaviours nearly everyone wants — stripping scripts, reading meta status
+ * codes, allow/block lists, basic auth — are configuration flags, because nobody
+ * should have to wire those up by hand. Hooks exist for what a package cannot
+ * anticipate: caching, metrics, authentication schemes, per-site fixups.
  *
  * A hook that throws fails the render. Return a promise and it will be awaited.
  */

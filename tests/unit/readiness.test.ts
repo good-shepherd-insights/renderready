@@ -51,10 +51,10 @@ const asPage = (page: FakePage): Page => page as unknown as Page;
 const READINESS = {
   pageDoneCheckInterval: 10,
   waitAfterLastRequest: 20,
-  prerenderReadyDelay: 50,
+  renderReadyDelay: 50,
 };
 
-const ready = (prerenderReady: boolean | null) => ({ domReady: true, prerenderReady });
+const ready = (renderReady: boolean | null) => ({ domReady: true, renderReady });
 
 describe('trackRequests', () => {
   it('counts requests up and back down', () => {
@@ -126,14 +126,14 @@ describe('waitForPageReady', () => {
       noopLogger,
     );
 
-    expect(result).toEqual({ timedOut: false, usedPrerenderReady: false });
+    expect(result).toEqual({ timedOut: false, usedReadyFlag: false });
   });
 
   it('waits until the document has parsed', async () => {
     const page = new FakePage();
     page.evaluateResults = [
-      { domReady: false, prerenderReady: null },
-      { domReady: false, prerenderReady: null },
+      { domReady: false, renderReady: null },
+      { domReady: false, renderReady: null },
       ready(null),
     ];
 
@@ -187,7 +187,7 @@ describe('waitForPageReady', () => {
 
   // The flag is authoritative once declared: false means "not yet", however
   // quiet the network is.
-  it('ignores network quiet while prerenderReady is false', async () => {
+  it('ignores network quiet while renderReady is false', async () => {
     const page = new FakePage();
     page.evaluateResults = [ready(false)];
 
@@ -199,10 +199,10 @@ describe('waitForPageReady', () => {
       noopLogger,
     );
 
-    expect(result).toEqual({ timedOut: true, usedPrerenderReady: true });
+    expect(result).toEqual({ timedOut: true, usedReadyFlag: true });
   });
 
-  it('captures once prerenderReady turns true', async () => {
+  it('captures once renderReady turns true', async () => {
     const page = new FakePage();
     page.evaluateResults = [ready(false), ready(false), ready(true)];
 
@@ -214,12 +214,12 @@ describe('waitForPageReady', () => {
       noopLogger,
     );
 
-    expect(result).toEqual({ timedOut: false, usedPrerenderReady: true });
+    expect(result).toEqual({ timedOut: false, usedReadyFlag: true });
   });
 
   // An app that declares itself done should not have to wait out its own
   // trailing analytics requests.
-  it('captures a ready page with busy network after prerenderReadyDelay', async () => {
+  it('captures a ready page with busy network after renderReadyDelay', async () => {
     const page = new FakePage();
     page.evaluateResults = [ready(true)];
     const tracker = idleTracker(3, Date.now());
@@ -228,12 +228,12 @@ describe('waitForPageReady', () => {
     const result = await waitForPageReady(
       asPage(page),
       tracker,
-      { ...READINESS, prerenderReadyDelay: 40 },
+      { ...READINESS, renderReadyDelay: 40 },
       Date.now() + 2_000,
       noopLogger,
     );
 
-    expect(result).toEqual({ timedOut: false, usedPrerenderReady: true });
+    expect(result).toEqual({ timedOut: false, usedReadyFlag: true });
     const elapsed = Date.now() - started;
     expect(elapsed).toBeGreaterThanOrEqual(35);
     expect(elapsed).toBeLessThan(1_000);
@@ -247,7 +247,7 @@ describe('waitForPageReady', () => {
     const result = await waitForPageReady(
       asPage(page),
       idleTracker(),
-      { ...READINESS, prerenderReadyDelay: 5_000 },
+      { ...READINESS, renderReadyDelay: 5_000 },
       Date.now() + 2_000,
       noopLogger,
     );
@@ -258,7 +258,7 @@ describe('waitForPageReady', () => {
 
   it('reports a timeout rather than throwing when the budget runs out', async () => {
     const page = new FakePage();
-    page.evaluateResults = [{ domReady: false, prerenderReady: null }];
+    page.evaluateResults = [{ domReady: false, renderReady: null }];
 
     const result = await waitForPageReady(
       asPage(page),
@@ -321,12 +321,12 @@ describe('waitForPageReady', () => {
       noopLogger,
     );
 
-    expect(result.usedPrerenderReady).toBe(true);
+    expect(result.usedReadyFlag).toBe(true);
   });
 
   it('never sleeps past the deadline', async () => {
     const page = new FakePage();
-    page.evaluateResults = [{ domReady: false, prerenderReady: null }];
+    page.evaluateResults = [{ domReady: false, renderReady: null }];
     const started = Date.now();
 
     await waitForPageReady(

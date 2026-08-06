@@ -133,8 +133,8 @@ class FakePage {
     return this.htmlContent;
   });
 
-  // Readiness: parsed, and no prerenderReady flag declared.
-  evaluate = vi.fn(async () => ({ domReady: true, prerenderReady: null }));
+  // Readiness: parsed, and no renderReady flag declared.
+  evaluate = vi.fn(async () => ({ domReady: true, renderReady: null }));
 
   on = vi.fn();
   off = vi.fn();
@@ -149,7 +149,7 @@ const options = (overrides: Partial<RenderPageOptions> = {}): RenderPageOptions 
   viewport: { width: 1440, height: 718 },
   timeoutMs: 5_000,
   followRedirects: false,
-  readiness: { pageDoneCheckInterval: 5, waitAfterLastRequest: 0, prerenderReadyDelay: 10 },
+  readiness: { pageDoneCheckInterval: 5, waitAfterLastRequest: 0, renderReadyDelay: 10 },
   blockedResourceTypes: [],
   blockedUrlPatterns: [],
   logger: noopLogger,
@@ -254,7 +254,7 @@ describe('renderPage', () => {
 
   it('captures partial HTML when readiness times out', async () => {
     const page = new FakePage();
-    page.evaluate.mockResolvedValue({ domReady: false, prerenderReady: null });
+    page.evaluate.mockResolvedValue({ domReady: false, renderReady: null });
 
     const result = await renderPage(asPage(page), options({ timeoutMs: 30 }));
 

@@ -76,8 +76,8 @@ describe('hostnameMatches', () => {
     expect(hostnameMatches('www.example.com', '.example.com')).toBe(true);
   });
 
-  // The prerender package used a substring match, so `example.com` also matched
-  // `example.com.attacker.test`. That is the bug this asserts is gone.
+  // A substring match would let `example.com` also match
+  // `example.com.attacker.test`. This asserts it does not.
   it('does not match a domain that merely contains the candidate', () => {
     expect(hostnameMatches('example.com.attacker.test', 'example.com')).toBe(false);
     expect(hostnameMatches('notexample.com', 'example.com')).toBe(false);

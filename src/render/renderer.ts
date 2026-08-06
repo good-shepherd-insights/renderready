@@ -117,7 +117,7 @@ export function createRenderer(options: RendererOptions = {}): Renderer {
           readiness: {
             pageDoneCheckInterval: config.render.pageDoneCheckInterval,
             waitAfterLastRequest: config.render.waitAfterLastRequest,
-            prerenderReadyDelay: config.render.prerenderReadyDelay,
+            renderReadyDelay: config.render.renderReadyDelay,
           },
           blockedResourceTypes: config.render.blockedResourceTypes,
           blockedUrlPatterns: config.render.blockedUrlPatterns,
@@ -217,7 +217,7 @@ export function createRenderer(options: RendererOptions = {}): Renderer {
  * 1. What the origin returned.
  * 2. `renderErrorStatusCode`, if there was no response at all.
  * 3. `timeoutStatusCode`, if the render timed out and one is configured.
- * 4. `<meta name="prerender-status-code">`, if the page declared one — the app
+ * 4. `<meta name="renderready-status-code">`, if the page declared one — the app
  *    knows more about its own routing than we do, so it wins.
  */
 function resolveStatusCode(

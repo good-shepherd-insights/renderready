@@ -31,8 +31,8 @@ export type ResourceType = (typeof RESOURCE_TYPES)[number];
  * {@link RenderReadyConfig} the internals consume.
  *
  * Precedence is always `option ?? environment ?? default`. Note `??`, not `||`:
- * an explicit `0` or `false` is honored, which the original prerender package
- * got wrong (you could not set `waitAfterLastRequest: 0` there).
+ * an explicit `0` or `false` is honored. With `||`, a deliberate `0` would fall
+ * through to the default, making `waitAfterLastRequest: 0` impossible to set.
  */
 export interface RenderReadyOptions {
   /** HTTP port to listen on. Env `PORT`. Default `3000`. */
@@ -70,10 +70,10 @@ export interface RenderReadyOptions {
   /** Network-quiet window before a page counts as done, in ms. Env `WAIT_AFTER_LAST_REQUEST`. Default `500`. */
   waitAfterLastRequest?: number;
   /**
-   * Grace period after `window.prerenderReady` first turns true, in ms. Env
-   * `PRERENDER_READY_DELAY`. Default `1000`.
+   * Grace period after `window.renderReady` first turns true, in ms. Env
+   * `RENDER_READY_DELAY`. Default `1000`.
    */
-  prerenderReadyDelay?: number;
+  renderReadyDelay?: number;
   /**
    * Follow a redirect on the requested URL instead of returning the 3xx.
    * Env `FOLLOW_REDIRECTS`. Default `false` — crawlers should see the redirect.
@@ -94,8 +94,7 @@ export interface RenderReadyOptions {
   viewportHeight?: number;
   /**
    * Headers sent to the origin on every request, so your app can detect the
-   * prerenderer. Default `{ 'X-Prerender': '1' }`, kept for compatibility with
-   * the existing prerender ecosystem.
+   * renderer. Default `{ 'X-RenderReady': '1' }`.
    */
   originHeaders?: Record<string, string>;
 
@@ -103,7 +102,7 @@ export interface RenderReadyOptions {
   removeScriptTags?: boolean;
   /** Rewrite root-relative `src`/`href` to absolute URLs. Default `true`. */
   absoluteUrls?: boolean;
-  /** Honor `<meta name="prerender-status-code">` / `prerender-header`. Default `true`. */
+  /** Honor `<meta name="renderready-status-code">` / `renderready-header`. Default `true`. */
   metaStatusCode?: boolean;
   /** Inject `x-renderready-render-id` / `-render-at` meta tags. Default `false`. */
   injectRenderMeta?: boolean;
@@ -149,7 +148,7 @@ export interface RenderConfig {
   pageLoadTimeout: number;
   pageDoneCheckInterval: number;
   waitAfterLastRequest: number;
-  prerenderReadyDelay: number;
+  renderReadyDelay: number;
   followRedirects: boolean;
   timeoutStatusCode: number | null;
   renderErrorStatusCode: number;
@@ -254,7 +253,7 @@ const configSchema = z.object({
     pageLoadTimeout: positiveInt,
     pageDoneCheckInterval: positiveInt,
     waitAfterLastRequest: nonNegativeInt,
-    prerenderReadyDelay: nonNegativeInt,
+    renderReadyDelay: nonNegativeInt,
     followRedirects: z.boolean(),
     timeoutStatusCode: httpStatus.nullable(),
     renderErrorStatusCode: httpStatus,
@@ -282,7 +281,7 @@ const configSchema = z.object({
   logLevel: z.enum(LOG_LEVELS),
 });
 
-export const DEFAULT_ORIGIN_HEADERS: Readonly<Record<string, string>> = { 'X-Prerender': '1' };
+export const DEFAULT_ORIGIN_HEADERS: Readonly<Record<string, string>> = { 'X-RenderReady': '1' };
 
 /**
  * Merge options over environment over defaults, then validate the result once.
@@ -333,8 +332,7 @@ export function resolveConfig(
         options.pageDoneCheckInterval ?? readInt(env, 'PAGE_DONE_CHECK_INTERVAL') ?? 500,
       waitAfterLastRequest:
         options.waitAfterLastRequest ?? readInt(env, 'WAIT_AFTER_LAST_REQUEST') ?? 500,
-      prerenderReadyDelay:
-        options.prerenderReadyDelay ?? readInt(env, 'PRERENDER_READY_DELAY') ?? 1_000,
+      renderReadyDelay: options.renderReadyDelay ?? readInt(env, 'RENDER_READY_DELAY') ?? 1_000,
       followRedirects: options.followRedirects ?? readBool(env, 'FOLLOW_REDIRECTS') ?? false,
       timeoutStatusCode: options.timeoutStatusCode ?? readInt(env, 'TIMEOUT_STATUS_CODE') ?? null,
       renderErrorStatusCode:

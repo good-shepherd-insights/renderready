@@ -70,7 +70,7 @@ function makeFakeBrowser() {
       content: vi.fn(async () => script.html),
       evaluate: vi.fn(async () => ({
         domReady: !script.neverReady,
-        prerenderReady: null,
+        renderReady: null,
       })),
       url: vi.fn(() => 'https://example.test/'),
       on: vi.fn(),
@@ -208,7 +208,7 @@ describe('createRenderer', () => {
 
       await active.render('https://example.test/');
 
-      expect(lastContextOptions?.extraHTTPHeaders).toEqual({ 'X-Prerender': '1' });
+      expect(lastContextOptions?.extraHTTPHeaders).toEqual({ 'X-RenderReady': '1' });
     });
 
     it('sends no extra headers when originHeaders is emptied', async () => {
@@ -236,19 +236,19 @@ describe('createRenderer', () => {
     });
 
     it('lets a meta status code override the origin', async () => {
-      script.html = '<html><head><meta name="prerender-status-code" content="404"></head></html>';
+      script.html = '<html><head><meta name="renderready-status-code" content="404"></head></html>';
       const active = await startRenderer();
 
       const result = await active.render('https://example.test/');
 
       expect(result.statusCode).toBe(404);
-      expect(result.html).not.toContain('prerender-status-code');
+      expect(result.html).not.toContain('renderready-status-code');
     });
 
     it('merges headers requested via meta tags over the origin headers', async () => {
       script.headers = { 'content-type': 'text/html' };
       script.html =
-        '<html><head><meta name="prerender-header" content="Location: /new"></head></html>';
+        '<html><head><meta name="renderready-header" content="Location: /new"></head></html>';
       const active = await startRenderer();
 
       const result = await active.render('https://example.test/');
@@ -284,7 +284,7 @@ describe('createRenderer', () => {
     // The app knows its own routing better than the timeout heuristic does.
     it('lets a meta status code win over timeoutStatusCode', async () => {
       script.neverReady = true;
-      script.html = '<html><head><meta name="prerender-status-code" content="404"></head></html>';
+      script.html = '<html><head><meta name="renderready-status-code" content="404"></head></html>';
       const active = await startRenderer({
         pageLoadTimeout: 30,
         pageDoneCheckInterval: 10,

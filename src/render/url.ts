@@ -39,9 +39,8 @@ function failInvalid(message: string): never {
 /**
  * True when `hostname` is `domain` itself or a subdomain of it.
  *
- * Deliberately stricter than the prerender package, which used a bare substring
- * match — that made `ALLOWED_DOMAINS=example.com` also match
- * `example.com.attacker.test`.
+ * Label-wise rather than a substring match, which would make
+ * `ALLOWED_DOMAINS=example.com` also accept `example.com.attacker.test`.
  */
 export function hostnameMatches(hostname: string, domain: string): boolean {
   const host = hostname.toLowerCase().replace(/\.$/, '');

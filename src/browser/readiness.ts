@@ -7,8 +7,7 @@ import type { Logger } from '../logger.js';
  *
  * A WebSocket or EventSource connection stays open for the life of the page, so
  * counting it as in-flight means the network is never quiet and every render on
- * such a page burns the full timeout. The original prerender server special-cased
- * EventSource for the same reason.
+ * such a page burns the full timeout.
  */
 const LONG_LIVED_RESOURCE_TYPES = new Set(['websocket', 'eventsource']);
 
@@ -68,19 +67,19 @@ export function trackRequests(page: Page): RequestTracker {
 export interface ReadinessOptions {
   pageDoneCheckInterval: number;
   waitAfterLastRequest: number;
-  prerenderReadyDelay: number;
+  renderReadyDelay: number;
 }
 
 export interface ReadinessResult {
   /** The budget ran out before the page reported itself done. */
   timedOut: boolean;
-  /** The page declared `window.prerenderReady` as a boolean, so we honored it. */
-  usedPrerenderReady: boolean;
+  /** The page declared `window.renderReady` as a boolean, so we honored it. */
+  usedReadyFlag: boolean;
 }
 
 interface PageState {
   domReady: boolean;
-  prerenderReady: boolean | null;
+  renderReady: boolean | null;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -93,9 +92,9 @@ const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
  * - **Network quiet.** No requests in flight, and none started or settled for
  *   `waitAfterLastRequest`. This is the only signal available for a site you
  *   don't control, which is why it is the fallback rather than the exception.
- * - **`window.prerenderReady`.** If the page defines it as a boolean, it is
+ * - **`window.renderReady`.** If the page defines it as a boolean, it is
  *   authoritative: we never capture before it turns true. Once it does, we
- *   capture as soon as the network is quiet or `prerenderReadyDelay` elapses,
+ *   capture as soon as the network is quiet or `renderReadyDelay` elapses,
  *   whichever comes first — so an app that knows it is done can cut a render
  *   short instead of waiting out its own trailing requests.
  *
@@ -115,7 +114,7 @@ export async function waitForPageReady(
   logger: Logger,
 ): Promise<ReadinessResult> {
   let firstReadyAt: number | undefined;
-  let sawPrerenderReady = false;
+  let sawReadyFlag = false;
 
   for (;;) {
     const remaining = deadlineAt - Date.now();
@@ -123,9 +122,9 @@ export async function waitForPageReady(
       logger.debug('Readiness budget exhausted; capturing as-is', {
         url: page.url(),
         inFlight: tracker.inFlight(),
-        sawPrerenderReady,
+        sawReadyFlag,
       });
-      return { timedOut: true, usedPrerenderReady: sawPrerenderReady };
+      return { timedOut: true, usedReadyFlag: sawReadyFlag };
     }
 
     const state = await readPageState(page);
@@ -133,11 +132,11 @@ export async function waitForPageReady(
     // Nothing meaningful exists to capture until the document has parsed, and
     // an unreadable page (mid-navigation) is not done either.
     if (state?.domReady === true) {
-      const declaresFlag = state.prerenderReady !== null;
+      const declaresFlag = state.renderReady !== null;
       if (declaresFlag) {
-        sawPrerenderReady = true;
+        sawReadyFlag = true;
       }
-      if (state.prerenderReady === true && firstReadyAt === undefined) {
+      if (state.renderReady === true && firstReadyAt === undefined) {
         firstReadyAt = Date.now();
       }
 
@@ -146,13 +145,13 @@ export async function waitForPageReady(
         Date.now() - tracker.lastActivityAt() >= options.waitAfterLastRequest;
 
       if (!declaresFlag && quiet) {
-        return { timedOut: false, usedPrerenderReady: false };
+        return { timedOut: false, usedReadyFlag: false };
       }
 
-      if (state.prerenderReady === true) {
+      if (state.renderReady === true) {
         const readyFor = firstReadyAt === undefined ? 0 : Date.now() - firstReadyAt;
-        if (quiet || readyFor >= options.prerenderReadyDelay) {
-          return { timedOut: false, usedPrerenderReady: true };
+        if (quiet || readyFor >= options.renderReadyDelay) {
+          return { timedOut: false, usedReadyFlag: true };
         }
       }
     }
@@ -172,12 +171,12 @@ export async function waitForPageReady(
 async function readPageState(page: Page): Promise<PageState | undefined> {
   try {
     return await page.evaluate((): PageState => {
-      const flag = (window as unknown as { prerenderReady?: unknown }).prerenderReady;
+      const flag = (window as unknown as { renderReady?: unknown }).renderReady;
       return {
         domReady: document.readyState !== 'loading',
         // Normalized in-page so a non-boolean value (or an unserializable one)
         // can never cross the boundary.
-        prerenderReady: typeof flag === 'boolean' ? flag : null,
+        renderReady: typeof flag === 'boolean' ? flag : null,
       };
     });
   } catch {

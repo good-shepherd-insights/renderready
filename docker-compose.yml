@@ -1,0 +1,31 @@
+services:
+  renderready:
+    build: .
+    image: renderready
+    ports:
+      - '3000:3000'
+    environment:
+      LOG_LEVEL: info
+      # Restrict this to the hosts you actually want rendered. Left open here for
+      # a local trial; see the Security section of the README before exposing it.
+      # ALLOWED_DOMAINS: example.com
+      PAGE_LOAD_TIMEOUT: '20000'
+    # Chromium wants far more shared memory than Docker's 64MB default. We also
+    # pass --disable-dev-shm-usage, but raising this avoids the slower fallback.
+    shm_size: 1gb
+    # Reaps the Chromium children orphaned by each browser recycle. The image's
+    # tini entrypoint already does this; belt and braces if it is overridden.
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3

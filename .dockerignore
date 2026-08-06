@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.git
+.github
+.changeset
+tests
+*.log
+*.tsbuildinfo
+.env
+.env.*
+.DS_Store
+Dockerfile
+.dockerignore
+docker-compose.yml

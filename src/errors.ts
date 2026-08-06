@@ -46,8 +46,9 @@ export class InvalidUrlError extends RenderReadyError {
 
 /**
  * The URL is well-formed but excluded by `allowedDomains` / `blockedDomains`.
- * 404 rather than 403, matching the prerender package's whitelist/blacklist
- * plugins — it should look like the resource simply isn't there.
+ *
+ * 404 rather than 403, so an excluded host looks like it simply isn't there
+ * instead of advertising that a filter exists and the caller tripped it.
  */
 export class UrlNotAllowedError extends RenderReadyError {
   constructor(message: string) {

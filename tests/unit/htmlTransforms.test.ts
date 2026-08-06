@@ -162,41 +162,41 @@ describe('absolutizeUrls', () => {
 describe('extractMetaDirectives', () => {
   it('reads and strips a status code', () => {
     const html =
-      '<html><head><meta name="prerender-status-code" content="404"></head><body>x</body></html>';
+      '<html><head><meta name="renderready-status-code" content="404"></head><body>x</body></html>';
     const result = extractMetaDirectives(html);
 
     expect(result.statusCode).toBe(404);
-    expect(result.html).not.toContain('prerender-status-code');
+    expect(result.html).not.toContain('renderready-status-code');
     expect(result.html).toContain('<body>x</body>');
   });
 
   it('reads the tag with attributes in the reverse order', () => {
-    const html = '<head><meta content="410" name="prerender-status-code"></head>';
+    const html = '<head><meta content="410" name="renderready-status-code"></head>';
 
     expect(extractMetaDirectives(html).statusCode).toBe(410);
   });
 
   it('reads and strips headers', () => {
     const html =
-      '<head><meta name="prerender-header" content="Location: https://example.com/new"></head>';
+      '<head><meta name="renderready-header" content="Location: https://example.com/new"></head>';
     const result = extractMetaDirectives(html);
 
     expect(result.headers).toEqual({ Location: 'https://example.com/new' });
-    expect(result.html).not.toContain('prerender-header');
+    expect(result.html).not.toContain('renderready-header');
   });
 
   it('reads several headers', () => {
     const html =
       '<head>' +
-      '<meta name="prerender-header" content="Location: /a">' +
-      '<meta name="prerender-header" content="X-Thing: b">' +
+      '<meta name="renderready-header" content="Location: /a">' +
+      '<meta name="renderready-header" content="X-Thing: b">' +
       '</head>';
 
     expect(extractMetaDirectives(html).headers).toEqual({ Location: '/a', 'X-Thing': 'b' });
   });
 
   it('decodes entities in header values', () => {
-    const html = '<head><meta name="prerender-header" content="Location: /a?x=1&amp;y=2"></head>';
+    const html = '<head><meta name="renderready-header" content="Location: /a?x=1&amp;y=2"></head>';
 
     expect(extractMetaDirectives(html).headers.Location).toBe('/a?x=1&y=2');
   });
@@ -204,8 +204,8 @@ describe('extractMetaDirectives', () => {
   it('reads a status code and headers together, the redirect case', () => {
     const html =
       '<head>' +
-      '<meta name="prerender-status-code" content="302">' +
-      '<meta name="prerender-header" content="Location: https://example.com/new">' +
+      '<meta name="renderready-status-code" content="302">' +
+      '<meta name="renderready-header" content="Location: https://example.com/new">' +
       '</head>';
     const result = extractMetaDirectives(html);
 
@@ -216,7 +216,7 @@ describe('extractMetaDirectives', () => {
 
   // Body content must not be able to spoof a status code.
   it('ignores directives that appear after </head>', () => {
-    const html = '<head></head><body><meta name="prerender-status-code" content="500"></body>';
+    const html = '<head></head><body><meta name="renderready-status-code" content="500"></body>';
     const result = extractMetaDirectives(html);
 
     expect(result.statusCode).toBeUndefined();
@@ -232,15 +232,15 @@ describe('extractMetaDirectives', () => {
 
   it('ignores a status code outside the valid HTTP range but still strips the tag', () => {
     const result = extractMetaDirectives(
-      '<head><meta name="prerender-status-code" content="999"></head>',
+      '<head><meta name="renderready-status-code" content="999"></head>',
     );
 
     expect(result.statusCode).toBeUndefined();
-    expect(result.html).not.toContain('prerender-status-code');
+    expect(result.html).not.toContain('renderready-status-code');
   });
 
   it('handles HTML with no head at all', () => {
-    const html = '<meta name="prerender-status-code" content="404">body';
+    const html = '<meta name="renderready-status-code" content="404">body';
 
     expect(extractMetaDirectives(html).statusCode).toBe(404);
   });
@@ -248,7 +248,7 @@ describe('extractMetaDirectives', () => {
   // A module-level global regex keeps `lastIndex` between calls; the
   // implementation clones it per call so repeated use stays correct.
   it('is stable across repeated calls', () => {
-    const html = '<head><meta name="prerender-header" content="A: 1"></head>';
+    const html = '<head><meta name="renderready-header" content="A: 1"></head>';
 
     expect(extractMetaDirectives(html).headers).toEqual({ A: '1' });
     expect(extractMetaDirectives(html).headers).toEqual({ A: '1' });
@@ -317,7 +317,7 @@ describe('injectRenderMeta', () => {
 describe('applyHtmlTransforms', () => {
   const html =
     '<html><head>' +
-    '<meta name="prerender-status-code" content="404">' +
+    '<meta name="renderready-status-code" content="404">' +
     '<script>app()</script>' +
     '<script type="application/ld+json">{"a":1}</script>' +
     '</head><body><img src="/a.png"></body></html>';
@@ -331,7 +331,7 @@ describe('applyHtmlTransforms', () => {
     });
 
     expect(result.statusCode).toBe(404);
-    expect(result.html).not.toContain('prerender-status-code');
+    expect(result.html).not.toContain('renderready-status-code');
     expect(result.html).not.toContain('app()');
     expect(result.html).toContain('application/ld+json');
     expect(result.html).toContain('src="https://example.com/a.png"');
@@ -352,14 +352,14 @@ describe('applyHtmlTransforms', () => {
     });
 
     expect(result.statusCode).toBeUndefined();
-    expect(result.html).toContain('prerender-status-code');
+    expect(result.html).toContain('renderready-status-code');
   });
 
   // Directives are read before scripts are stripped, so a directive can never be
   // removed as collateral damage.
   it('reads a directive that sits inside the region scripts occupy', () => {
     const withScriptAround =
-      '<head><script>a()</script><meta name="prerender-status-code" content="410"></head>';
+      '<head><script>a()</script><meta name="renderready-status-code" content="410"></head>';
     const result = applyHtmlTransforms(withScriptAround, 'https://example.com/', {
       removeScriptTags: true,
       absoluteUrls: false,
@@ -385,7 +385,7 @@ describe('applyHtmlTransforms', () => {
 
   it('returns the headers requested by meta tags', () => {
     const result = applyHtmlTransforms(
-      '<head><meta name="prerender-header" content="X-A: 1"></head>',
+      '<head><meta name="renderready-header" content="X-A: 1"></head>',
       'https://e.test/',
       { ...ALL_OFF, metaStatusCode: true },
     );
