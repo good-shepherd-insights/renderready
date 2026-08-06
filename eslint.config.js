@@ -38,6 +38,11 @@ export default tseslint.config(
   {
     files: ['tests/**/*.ts'],
     rules: {
+      // Test doubles stand in for async APIs, so their methods are async by
+      // signature without ever awaiting anything.
+      '@typescript-eslint/require-await': 'off',
+      // Passing a mocked method around by reference is the point of vi.mocked.
+      '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
