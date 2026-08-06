@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 import { ConfigError } from './errors.js';
 import { LOG_LEVELS, type LogLevel, type Logger } from './logger.js';
 
@@ -179,7 +177,8 @@ export interface RenderReadyConfig {
   logLevel: LogLevel;
 }
 
-export type Env = Record<string, string | undefined>;
+/** Just the shape of `process.env`, so tests can pass a fixed environment. */
+type Env = Record<string, string | undefined>;
 
 function readString(env: Env, key: string): string | undefined {
   const raw = env[key];
@@ -231,55 +230,183 @@ function readList(env: Env, key: string): string[] | undefined {
   return items.length > 0 ? items : undefined;
 }
 
-const positiveInt = z.number().int().positive();
-const nonNegativeInt = z.number().int().nonnegative();
-const httpStatus = z.number().int().min(100).max(599);
+const MAX_PORT = 65_535;
+const MIN_STATUS = 100;
+const MAX_STATUS = 599;
 
-const configSchema = z.object({
-  server: z.object({
-    port: z.number().int().min(0).max(65535),
-    host: z.string().min(1),
-  }),
-  browser: z.object({
-    chromePath: z.string().min(1).optional(),
-    extraChromeArgs: z.array(z.string()),
-    blockImages: z.boolean(),
-    blockFonts: z.boolean(),
-    recycleAfterRenders: positiveInt,
-    recycleAfterMs: positiveInt,
-    relaunchWaitMs: positiveInt,
-  }),
-  render: z.object({
-    pageLoadTimeout: positiveInt,
-    pageDoneCheckInterval: positiveInt,
-    waitAfterLastRequest: nonNegativeInt,
-    renderReadyDelay: nonNegativeInt,
-    followRedirects: z.boolean(),
-    timeoutStatusCode: httpStatus.nullable(),
-    renderErrorStatusCode: httpStatus,
-    userAgent: z.string().min(1).nullable(),
-    viewportWidth: positiveInt,
-    viewportHeight: positiveInt,
-    originHeaders: z.record(z.string(), z.string()),
-    removeScriptTags: z.boolean(),
-    absoluteUrls: z.boolean(),
-    metaStatusCode: z.boolean(),
-    injectRenderMeta: z.boolean(),
-    blockedResourceTypes: z.array(z.enum(RESOURCE_TYPES)),
-    blockedUrlPatterns: z.array(z.string().min(1)),
-  }),
-  access: z.object({
-    allowedDomains: z.array(z.string().min(1)),
-    blockedDomains: z.array(z.string().min(1)),
-    basicAuth: z
-      .object({
-        username: z.string().min(1),
-        password: z.string().min(1),
-      })
-      .nullable(),
-  }),
-  logLevel: z.enum(LOG_LEVELS),
-});
+/** How a rejected value is shown back to whoever has to fix it. */
+function describe(value: unknown): string {
+  if (typeof value === 'string') {
+    return JSON.stringify(value);
+  }
+  if (value === null || typeof value !== 'object') {
+    return String(value);
+  }
+  return Array.isArray(value) ? 'an array' : 'an object';
+}
+
+/**
+ * Accumulating validator for the merged configuration.
+ *
+ * Hand-written rather than schema-driven, deliberately: a validation library
+ * would be a runtime dependency inherited by everyone who installs this package,
+ * and what needs checking is a flat set of integers, booleans and string lists
+ * that is fully known at build time.
+ *
+ * Every value arrives as `unknown` because a JavaScript caller can pass anything
+ * regardless of what the TypeScript types promise — this is the only layer that
+ * actually enforces them.
+ *
+ * Problems are collected rather than thrown one at a time, so a badly configured
+ * deployment reports everything wrong with it in a single startup. Paths are the
+ * option names you pass in, not the internal grouping, because those are what
+ * you have to go and change.
+ */
+function createValidator() {
+  const problems: string[] = [];
+
+  const fail = (path: string, expected: string, value: unknown): void => {
+    problems.push(`${path}: expected ${expected}, received ${describe(value)}`);
+  };
+
+  const int = (path: string, value: unknown, min: number, max?: number): void => {
+    if (typeof value !== 'number' || !Number.isInteger(value)) {
+      fail(path, 'an integer', value);
+      return;
+    }
+    if (value < min || (max !== undefined && value > max)) {
+      const range = max === undefined ? `an integer >= ${min}` : `an integer ${min}–${max}`;
+      fail(path, range, value);
+    }
+  };
+
+  const bool = (path: string, value: unknown): void => {
+    if (typeof value !== 'boolean') {
+      fail(path, 'true or false', value);
+    }
+  };
+
+  const text = (path: string, value: unknown): void => {
+    if (typeof value !== 'string' || value === '') {
+      fail(path, 'a non-empty string', value);
+    }
+  };
+
+  /** `allowEmpty` covers `extraChromeArgs`, where an empty element is harmless. */
+  const list = (path: string, value: unknown, allowEmpty = false): void => {
+    if (!Array.isArray(value)) {
+      fail(path, 'an array of strings', value);
+      return;
+    }
+    for (const [index, item] of value.entries()) {
+      if (typeof item !== 'string' || (!allowEmpty && item === '')) {
+        fail(`${path}[${index}]`, 'a non-empty string', item);
+      }
+    }
+  };
+
+  const oneOf = (path: string, value: unknown, allowed: readonly string[]): void => {
+    if (typeof value !== 'string' || !allowed.includes(value)) {
+      fail(path, `one of ${allowed.join(', ')}`, value);
+    }
+  };
+
+  const eachOneOf = (path: string, value: unknown, allowed: readonly string[]): void => {
+    if (!Array.isArray(value)) {
+      fail(path, 'an array', value);
+      return;
+    }
+    for (const [index, item] of value.entries()) {
+      oneOf(`${path}[${index}]`, item, allowed);
+    }
+  };
+
+  const stringRecord = (path: string, value: unknown): void => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      fail(path, 'an object of string values', value);
+      return;
+    }
+    for (const [key, item] of Object.entries(value)) {
+      if (typeof item !== 'string') {
+        fail(`${path}.${key}`, 'a string', item);
+      }
+    }
+  };
+
+  return { problems, int, bool, text, list, oneOf, eachOneOf, stringRecord };
+}
+
+/**
+ * Check the merged shape and throw once if anything is wrong.
+ *
+ * @throws {ConfigError} listing every problem found.
+ */
+function validate(candidate: {
+  server: Record<string, unknown>;
+  browser: Record<string, unknown>;
+  render: Record<string, unknown>;
+  access: Record<string, unknown>;
+  logLevel: unknown;
+}): void {
+  const v = createValidator();
+  const { server, browser, render, access } = candidate;
+
+  v.int('port', server.port, 0, MAX_PORT);
+  v.text('host', server.host);
+
+  if (browser.chromePath !== undefined) {
+    v.text('chromePath', browser.chromePath);
+  }
+  v.list('extraChromeArgs', browser.extraChromeArgs, true);
+  v.bool('blockImages', browser.blockImages);
+  v.bool('blockFonts', browser.blockFonts);
+  v.int('recycleAfterRenders', browser.recycleAfterRenders, 1);
+  v.int('recycleAfterMs', browser.recycleAfterMs, 1);
+  v.int('relaunchWaitMs', browser.relaunchWaitMs, 1);
+
+  v.int('pageLoadTimeout', render.pageLoadTimeout, 1);
+  v.int('pageDoneCheckInterval', render.pageDoneCheckInterval, 1);
+  v.int('waitAfterLastRequest', render.waitAfterLastRequest, 0);
+  v.int('renderReadyDelay', render.renderReadyDelay, 0);
+  v.bool('followRedirects', render.followRedirects);
+  if (render.timeoutStatusCode !== null) {
+    v.int('timeoutStatusCode', render.timeoutStatusCode, MIN_STATUS, MAX_STATUS);
+  }
+  v.int('renderErrorStatusCode', render.renderErrorStatusCode, MIN_STATUS, MAX_STATUS);
+  if (render.userAgent !== null) {
+    v.text('userAgent', render.userAgent);
+  }
+  v.int('viewportWidth', render.viewportWidth, 1);
+  v.int('viewportHeight', render.viewportHeight, 1);
+  v.stringRecord('originHeaders', render.originHeaders);
+  v.bool('removeScriptTags', render.removeScriptTags);
+  v.bool('absoluteUrls', render.absoluteUrls);
+  v.bool('metaStatusCode', render.metaStatusCode);
+  v.bool('injectRenderMeta', render.injectRenderMeta);
+  v.eachOneOf('blockedResourceTypes', render.blockedResourceTypes, RESOURCE_TYPES);
+  v.list('blockedUrlPatterns', render.blockedUrlPatterns);
+
+  v.list('allowedDomains', access.allowedDomains);
+  v.list('blockedDomains', access.blockedDomains);
+  if (access.basicAuth !== null) {
+    const auth = access.basicAuth;
+    if (typeof auth !== 'object' || auth === undefined) {
+      v.problems.push('basicAuth: expected an object with username and password');
+    } else {
+      const { username, password } = auth as Record<string, unknown>;
+      v.text('basicAuth.username', username);
+      v.text('basicAuth.password', password);
+    }
+  }
+
+  v.oneOf('logLevel', candidate.logLevel, LOG_LEVELS);
+
+  if (v.problems.length > 0) {
+    throw new ConfigError(
+      `Invalid renderready configuration:\n${v.problems.map(problem => `  - ${problem}`).join('\n')}`,
+    );
+  }
+}
 
 export const DEFAULT_ORIGIN_HEADERS: Readonly<Record<string, string>> = { 'X-RenderReady': '1' };
 
@@ -357,12 +484,12 @@ export function resolveConfig(
     logLevel: options.logLevel ?? readString(env, 'LOG_LEVEL') ?? 'info',
   };
 
-  const result = configSchema.safeParse(candidate);
-  if (!result.success) {
-    throw new ConfigError(`Invalid renderready configuration:\n${z.prettifyError(result.error)}`);
-  }
+  validate(candidate);
 
-  const config = result.data;
+  // Sound because `validate` has just checked every leaf: the widening here is
+  // only about `readList` returning `string[]` where the config wants a union.
+  const config = candidate as RenderReadyConfig;
+
   if (config.render.pageDoneCheckInterval > config.render.pageLoadTimeout) {
     throw new ConfigError(
       `pageDoneCheckInterval (${config.render.pageDoneCheckInterval}ms) must not exceed ` +

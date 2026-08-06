@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_ORIGIN_HEADERS, resolveConfig } from '../../src/config.js';
+import {
+  DEFAULT_ORIGIN_HEADERS,
+  resolveConfig,
+  type RenderReadyOptions,
+} from '../../src/config.js';
 import { ConfigError } from '../../src/errors.js';
 
 // An explicit empty env keeps these tests independent of the ambient shell.
@@ -169,6 +173,81 @@ describe('resolveConfig', () => {
       );
 
       expect(config.access.basicAuth).toEqual({ username: 'a', password: 'b' });
+    });
+  });
+
+  it('accepts a userAgent option', () => {
+    expect(resolveConfig({ userAgent: 'CustomBot/1.0' }, NO_ENV).render.userAgent).toBe(
+      'CustomBot/1.0',
+    );
+  });
+
+  // The TypeScript types promise these shapes; nothing enforces them for a
+  // JavaScript caller, so validation is the only line of defence. Each case
+  // below is one a `.js` consumer can actually produce.
+  describe('runtime type checking', () => {
+    const badly =
+      (options: unknown): (() => unknown) =>
+      () =>
+        resolveConfig(options as RenderReadyOptions, NO_ENV);
+
+    it.each([
+      ['a non-numeric port', { port: 'nope' }, /port: expected an integer, received "nope"/],
+      ['a fractional integer', { viewportWidth: 12.5 }, /viewportWidth: expected an integer/],
+      ['a non-boolean flag', { blockImages: 'yes' }, /blockImages: expected true or false/],
+      ['an empty host', { host: '' }, /host: expected a non-empty string/],
+      ['a non-string userAgent', { userAgent: 42 }, /userAgent: expected a non-empty string/],
+      [
+        'a non-array domain list',
+        { allowedDomains: 'example.com' },
+        /expected an array of strings/,
+      ],
+      ['an empty domain entry', { blockedDomains: ['ok', ''] }, /blockedDomains\[1\]/],
+      ['a non-string domain entry', { allowedDomains: [7] }, /allowedDomains\[0\]/],
+      ['a non-array resource type list', { blockedResourceTypes: 'image' }, /expected an array/],
+      ['an unknown resource type', { blockedResourceTypes: ['nope'] }, /blockedResourceTypes\[0\]/],
+      ['non-object originHeaders', { originHeaders: 'x' }, /expected an object of string values/],
+      [
+        'an array as originHeaders',
+        { originHeaders: ['x'] },
+        /expected an object of string values/,
+      ],
+      ['a non-string header value', { originHeaders: { A: 1 } }, /originHeaders\.A: expected/],
+      ['a non-object basicAuth', { basicAuth: 'user:pass' }, /basicAuth: expected an object/],
+      ['basicAuth missing a password', { basicAuth: { username: 'a' } }, /basicAuth\.password/],
+      ['an out-of-range status', { timeoutStatusCode: 42 }, /expected an integer 100–599/],
+      ['an unknown log level', { logLevel: 'chatty' }, /logLevel: expected one of debug/],
+    ])('rejects %s', (_name, options, expected) => {
+      expect(badly(options)).toThrow(ConfigError);
+      expect(badly(options)).toThrow(expected);
+    });
+
+    it('reports every problem at once rather than one per run', () => {
+      let message = '';
+      try {
+        resolveConfig(
+          { port: 'a', host: '', blockImages: 'maybe' } as unknown as RenderReadyOptions,
+          NO_ENV,
+        );
+      } catch (error) {
+        message = (error as ConfigError).message;
+      }
+
+      expect(message).toMatch(/port:/);
+      expect(message).toMatch(/host:/);
+      expect(message).toMatch(/blockImages:/);
+    });
+
+    // Paths are the option names you pass in, not the internal grouping, because
+    // `port` is what you have to go and change — `server.port` is not.
+    it('names the option rather than its internal group', () => {
+      expect(badly({ recycleAfterMs: 0 })).toThrow(/recycleAfterMs: expected an integer >= 1/);
+      expect(badly({ port: 70_000 })).toThrow(/port: expected an integer 0–65535/);
+    });
+
+    it('describes a rejected object without dumping it', () => {
+      expect(badly({ port: { a: 1 } })).toThrow(/port: expected an integer, received an object/);
+      expect(badly({ port: [1] })).toThrow(/port: expected an integer, received an array/);
     });
   });
 });
