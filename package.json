@@ -46,7 +46,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "renderready": "./dist/cli.js"
+    "renderready": "dist/cli.js"
   },
   "files": [
     "dist",
