@@ -22,38 +22,53 @@
  * const { html, statusCode } = await renderer.render('https://example.com');
  * await renderer.stop();
  * ```
+ *
+ * Everything exported here is public API covered by semver. Internals are
+ * deliberately not re-exported, even where they would be convenient — each
+ * export is a shape that cannot change without a major release.
  */
+
+// ---------------------------------------------------------------- entry points
 
 export { createServer, start } from './server/createServer.js';
 export type { RenderReadyServer, ServerOptions } from './server/createServer.js';
-export { renderRequestSchema } from './server/schema.js';
-export type { RenderRequest } from './server/schema.js';
 
 export { createRenderer } from './render/renderer.js';
 export type { Renderer, RendererOptions, RenderOptions, RenderResult } from './render/renderer.js';
 
-export { resolveConfig, RESOURCE_TYPES, DEFAULT_ORIGIN_HEADERS } from './config.js';
+// ------------------------------------------------------------------ configuring
+
+export { RESOURCE_TYPES } from './config.js';
 export type {
-  AccessConfig,
-  BrowserConfig,
-  Env,
-  RenderConfig,
-  RenderReadyConfig,
   RenderReadyOptions,
   ResourceType,
+  // Reachable through `renderer.config`, so the shape needs names.
+  RenderReadyConfig,
+  AccessConfig,
+  BrowserConfig,
+  RenderConfig,
   ServerConfig,
 } from './config.js';
 
+/** The request shape accepted by `POST /render`, for typing your own callers. */
+export type { RenderRequest } from './server/schema.js';
+
+// ------------------------------------------------------------------- extending
+
 export type { Hooks, RenderedContext, RenderFinishedInfo, RenderRequestContext } from './hooks.js';
 
-export { createConsoleLogger, noopLogger, isLogLevel, LOG_LEVELS } from './logger.js';
+/** Implement this to route our logs into your own logger. */
 export type { LogLevel, LogMeta, Logger } from './logger.js';
+
+/** Wire these to a readiness probe; passed via `RendererOptions.availability`. */
+export type { AvailabilityHooks, BrowserStats } from './browser/browserManager.js';
+
+// -------------------------------------------------------------- handling errors
 
 export {
   BrowserLaunchError,
   BrowserUnavailableError,
   ConfigError,
-  errorMessage,
   InvalidUrlError,
   isRenderReadyError,
   RenderError,
@@ -62,14 +77,17 @@ export {
 } from './errors.js';
 export type { RenderReadyErrorCode } from './errors.js';
 
-// The HTML transforms are exported because they are pure and useful on their own —
-// for post-processing HTML you obtained some other way, or inside an onPageLoaded hook.
+// ----------------------------------------------------------------------- extras
+
+/**
+ * The HTML transforms, exported because they are pure and independently useful:
+ * for post-processing inside an `onPageLoaded` hook, or on HTML you obtained
+ * some other way entirely.
+ */
 export {
   absolutizeUrls,
   applyHtmlTransforms,
-  decodeHtmlEntities,
   extractMetaDirectives,
-  injectRenderMeta,
   removeScriptTags,
 } from './render/htmlTransforms.js';
 export type {
@@ -78,8 +96,7 @@ export type {
   MetaDirectives,
 } from './render/htmlTransforms.js';
 
-export { assertDomainAllowed, hostnameMatches, normalizeUrl } from './render/url.js';
-
-export type { AvailabilityHooks, BrowserManager, BrowserStats } from './browser/browserManager.js';
+/** Validate and canonicalize a URL the same way `render()` does, before calling it. */
+export { normalizeUrl } from './render/url.js';
 
 export { VERSION } from './version.js';
