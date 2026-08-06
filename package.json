@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/lukapozega/renderready#readme",
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
