@@ -1,0 +1,101 @@
+{
+  "name": "renderready",
+  "version": "0.0.0",
+  "description": "Prerender any JavaScript web page to static HTML. A modern, Playwright-powered prerender server you can start in one line.",
+  "keywords": [
+    "prerender",
+    "prerendering",
+    "seo",
+    "javascript-seo",
+    "playwright",
+    "headless",
+    "chromium",
+    "chrome",
+    "spa",
+    "crawler",
+    "render",
+    "html",
+    "server"
+  ],
+  "license": "MIT",
+  "author": "Luka Pozega",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lukapozega/renderready.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lukapozega/renderready/issues"
+  },
+  "homepage": "https://github.com/lukapozega/renderready#readme",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "renderready": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx watch src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "check:packaging": "publint --strict && attw --pack .",
+    "verify": "npm run lint && npm run typecheck && npm run test",
+    "prepublishOnly": "npm run build",
+    "release": "changeset publish"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  },
+  "dependencies": {
+    "fastify": "^5.11.2",
+    "playwright-core": "^1.62.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@changesets/cli": "^2.31.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.2",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "playwright": "^1.62.1",
+    "prettier": "^3.9.6",
+    "publint": "^0.3.23",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.9",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.66.0",
+    "vitest": "^4.1.10"
+  }
+}
