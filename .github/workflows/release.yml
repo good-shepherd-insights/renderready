@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Version or publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit the version bump and push the tag
+      pull-requests: write # open and update the release PR
+      id-token: write # required for npm Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Changesets needs history to work out what has already been released.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      # npm 11.5.1+ is what supports Trusted Publishing; the runner's bundled
+      # version may lag behind.
+      - run: npm install --global npm@latest
+
+      - name: Create a release PR, or publish if one was merged
+        uses: changesets/action@v1
+        with:
+          # When changesets are pending, this opens or updates a PR that bumps
+          # the version and writes the changelog. When that PR is merged and no
+          # changesets remain, `publish` runs instead.
+          version: npx changeset version
+          publish: npx changeset publish
+          commit: 'chore: release'
+          title: 'chore: release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No NODE_AUTH_TOKEN and no NPM_TOKEN: publishing authenticates with
+          # the OIDC token from `id-token: write`. This requires a one-time
+          # setup on npmjs.com — see .github/PUBLISHING.md.
