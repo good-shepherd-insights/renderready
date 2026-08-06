@@ -29,7 +29,7 @@ export interface AvailabilityHooks {
   onAvailable: () => void;
 }
 
-export interface BrowserManagerOptions {
+interface BrowserManagerOptions {
   config: BrowserConfig;
   logger: Logger;
   availability?: AvailabilityHooks;

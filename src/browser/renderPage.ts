@@ -18,7 +18,7 @@ export interface RenderPageOptions {
   logger: Logger;
 }
 
-export interface RenderPageResult {
+interface RenderPageResult {
   html: string;
   status: number;
   /** Response headers from the origin's reply to the requested URL. */

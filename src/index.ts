@@ -23,9 +23,11 @@
  * await renderer.stop();
  * ```
  *
- * Everything exported here is public API covered by semver. Internals are
- * deliberately not re-exported, even where they would be convenient — each
- * export is a shape that cannot change without a major release.
+ * Everything exported here is public API covered by semver, and everything
+ * exported here is documented in the README. Internals stay internal even where
+ * re-exporting them would be convenient: an export nobody documents is the worst
+ * of both worlds — locked by semver, and undiscoverable. Adding to this list is a
+ * minor release; removing from it is a major one, so it stays deliberately short.
  */
 
 // ---------------------------------------------------------------- entry points
@@ -38,17 +40,19 @@ export type { Renderer, RendererOptions, RenderOptions, RenderResult } from './r
 
 // ------------------------------------------------------------------ configuring
 
+/** Every option accepted by the three entry points, all optional. */
+export type { RenderReadyOptions } from './config.js';
+
+/**
+ * The resolved, fully-populated configuration, reachable via `renderer.config`.
+ * Its grouped sub-shapes are intentionally not exported by name — read them
+ * through this type.
+ */
+export type { RenderReadyConfig } from './config.js';
+
+/** Playwright's resource types, for `blockedResourceTypes`. */
 export { RESOURCE_TYPES } from './config.js';
-export type {
-  RenderReadyOptions,
-  ResourceType,
-  // Reachable through `renderer.config`, so the shape needs names.
-  RenderReadyConfig,
-  AccessConfig,
-  BrowserConfig,
-  RenderConfig,
-  ServerConfig,
-} from './config.js';
+export type { ResourceType } from './config.js';
 
 /** The request shape accepted by `POST /render`, for typing your own callers. */
 export type { RenderRequest } from './server/schema.js';
@@ -78,25 +82,5 @@ export {
 export type { RenderReadyErrorCode } from './errors.js';
 
 // ----------------------------------------------------------------------- extras
-
-/**
- * The HTML transforms, exported because they are pure and independently useful:
- * for post-processing inside an `onPageLoaded` hook, or on HTML you obtained
- * some other way entirely.
- */
-export {
-  absolutizeUrls,
-  applyHtmlTransforms,
-  extractMetaDirectives,
-  removeScriptTags,
-} from './render/htmlTransforms.js';
-export type {
-  HtmlTransformOptions,
-  HtmlTransformResult,
-  MetaDirectives,
-} from './render/htmlTransforms.js';
-
-/** Validate and canonicalize a URL the same way `render()` does, before calling it. */
-export { normalizeUrl } from './render/url.js';
 
 export { VERSION } from './version.js';

@@ -11,7 +11,7 @@ import type { Logger } from '../logger.js';
  */
 const LONG_LIVED_RESOURCE_TYPES = new Set(['websocket', 'eventsource']);
 
-export interface RequestTracker {
+interface RequestTracker {
   /** Requests started but not yet finished or failed. */
   inFlight: () => number;
   /** Timestamp of the last request start, finish or failure. */
@@ -70,7 +70,7 @@ export interface ReadinessOptions {
   renderReadyDelay: number;
 }
 
-export interface ReadinessResult {
+interface ReadinessResult {
   /** The budget ran out before the page reported itself done. */
   timedOut: boolean;
   /** The page declared `window.renderReady` as a boolean, so we honored it. */

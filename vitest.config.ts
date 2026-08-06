@@ -8,8 +8,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      // The CLI is a thin argv/signal wrapper exercised by the integration suite.
-      exclude: ['src/cli.ts', 'src/index.ts'],
+      // The CLI's main() is a thin argv/signal wrapper around start(), exercised
+      // by the integration suite; parseArgs is unit-tested directly.
+      exclude: ['src/cli.ts'],
       reporter: ['text', 'lcov'],
       thresholds: {
         statements: 90,
