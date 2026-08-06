@@ -1,10 +1,15 @@
 # renderready
 
+[![npm](https://img.shields.io/npm/v/renderready?logo=npm)](https://www.npmjs.com/package/renderready)
+[![CI](https://github.com/lukapozega/renderready/actions/workflows/ci.yml/badge.svg)](https://github.com/lukapozega/renderready/actions/workflows/ci.yml)
+[![node](https://img.shields.io/node/v/renderready)](https://nodejs.org)
+[![license](https://img.shields.io/npm/l/renderready)](./LICENSE)
+
 Prerender any JavaScript web page to static HTML. Send it a URL over HTTP, get back the fully
 rendered DOM — no `<script>` tags, correct status codes, ready for crawlers.
 
-Built on Playwright and headless Chromium. One dependency-light package, no database, no queue
-broker, no cloud service.
+Built on Playwright and headless Chromium. Two runtime dependencies — `playwright-core` and
+`fastify` — and no database, no queue broker, no cloud service.
 
 ```bash
 npm install renderready
@@ -40,11 +45,14 @@ works on sites you do not control instead of only ones you have instrumented.
 - [Status codes](#status-codes)
 - [Options](#options)
 - [Hooks](#hooks)
+- [Errors](#errors)
 - [Adding a cache](#adding-a-cache)
 - [Docker](#docker)
 - [Concurrency and capacity](#concurrency-and-capacity)
 - [Security](#security)
 - [Compatibility](#compatibility)
+- [Requirements](#requirements)
+- [Contributing](#contributing)
 
 ## Use cases
 
@@ -246,10 +254,10 @@ Every option can be set programmatically or by environment variable. Precedence 
 
 ### Server
 
-| Option | Env    | Default   |     |
-| ------ | ------ | --------- | --- |
-| `port` | `PORT` | `3000`    |     |
-| `host` | `HOST` | `0.0.0.0` |     |
+| Option | Env    | Default   |
+| ------ | ------ | --------- |
+| `port` | `PORT` | `3000`    |
+| `host` | `HOST` | `0.0.0.0` |
 
 ### Browser
 
@@ -370,6 +378,47 @@ createRenderer({
 A hook that throws fails the render — except `onRenderFinished`, whose errors are swallowed and
 logged, because metrics code must not be able to break rendering.
 
+## Errors
+
+`renderer.render()` rejects with a typed error. Each one carries a stable `code` so you can branch
+without matching on message text, and the ones whose HTTP meaning is intrinsic carry a `statusCode`
+too.
+
+| Class                     | `code`                  | `statusCode` | When                                                   |
+| ------------------------- | ----------------------- | ------------ | ------------------------------------------------------ |
+| `ConfigError`             | `INVALID_CONFIG`        | —            | Configuration failed validation at startup.            |
+| `InvalidUrlError`         | `INVALID_URL`           | `400`        | The URL is absent, malformed, or not `http(s)`.        |
+| `UrlNotAllowedError`      | `URL_NOT_ALLOWED`       | `404`        | Excluded by `allowedDomains` / `blockedDomains`.       |
+| `BrowserUnavailableError` | `BROWSER_UNAVAILABLE`   | `503`        | Mid-relaunch and it did not come back. Retry.          |
+| `BrowserLaunchError`      | `BROWSER_LAUNCH_FAILED` | —            | Chromium could not be launched at all. Fatal.          |
+| `RenderError`             | `RENDER_FAILED`         | —            | Navigation or content extraction failed for this page. |
+
+All of them extend `RenderReadyError`. Use `isRenderReadyError()` to narrow an `unknown`:
+
+```ts
+import { createRenderer, isRenderReadyError, UrlNotAllowedError } from 'renderready';
+
+try {
+  await renderer.render(url);
+} catch (error) {
+  if (error instanceof UrlNotAllowedError) {
+    return reply.code(404).send();
+  }
+  if (isRenderReadyError(error)) {
+    // `code` is a stable union; `statusCode` may be undefined.
+    return reply.code(error.statusCode ?? 504).send({ code: error.code });
+  }
+  throw error;
+}
+```
+
+`UrlNotAllowedError` is a `404` rather than a `403` on purpose: an excluded host should look like it
+simply is not there, instead of advertising that a filter exists and that you tripped it.
+
+`BrowserLaunchError` is the one to treat as fatal — nothing the process does afterwards will render
+anything. Pass `onFatal` to be told about it, which is what the CLI uses to exit non-zero so a
+supervisor restarts it.
+
 ## Adding a cache
 
 There is no built-in cache: what to key on, how long to keep it, and where to put it are decisions
@@ -471,8 +520,25 @@ any soft-404 meta tags use the `renderready-` prefix documented above.
 
 ## Requirements
 
-Node.js 20.11 or newer, and a Chromium build — either Playwright's
+Node.js 22.12 or newer, and a Chromium build — either Playwright's
 (`npx playwright install chromium`) or your own via `chromePath`.
+
+Node 20 is not supported: it reached
+[end of life](https://github.com/nodejs/release#release-schedule) in April 2026.
+
+## Contributing
+
+Bug reports, documentation fixes and focused pull requests are all welcome.
+
+```bash
+npm install
+npx playwright install chromium   # only needed for the integration suite
+npm run verify                    # lint + typecheck + unit tests
+```
+
+`npm run test:integration` exercises real Chromium, and `npm run test:docker` builds the image and
+runs the container smoke test. Please run `npm run verify` before opening a pull request, and add a
+changeset (`npx changeset`) describing the change so it makes it into a release.
 
 ## License
 

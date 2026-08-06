@@ -16,13 +16,18 @@ that bumps the version and writes `CHANGELOG.md`. Merging that PR publishes to n
 
 Trusted Publishing has to be enabled on the npm side; the workflow cannot do it for you.
 
-1. Publish `1.0.0` manually once, so the package exists:
+1. Publish `1.0.0` manually once, so the package exists — a trusted publisher is configured
+   per-package, so there is nothing to attach it to until then:
 
    ```bash
    npm login
    npm run build
-   npm publish --access public
+   npm publish
    ```
+
+   `publishConfig.access` in `package.json` already marks it public, so no flag is needed. Do not add
+   `--provenance` here: provenance needs the OIDC token that only CI has, and the command will fail.
+   Every later release gets provenance automatically from the workflow.
 
 2. On <https://www.npmjs.com/package/renderready/access>, under **Trusted Publisher**, add a GitHub
    Actions publisher:
@@ -41,3 +46,11 @@ attestation, so consumers can verify the tarball was built from this repository.
 - `id-token: write` permission, which is what mints the OIDC token.
 - npm 11.5.1 or newer, which is why the workflow upgrades npm before publishing.
 - The package must be public (`.changeset/config.json` sets `"access": "public"`).
+
+## Why `esbuild` is pinned
+
+`package.json` forces `esbuild` to `^0.28.1` through `overrides`. This looks like an unexplained pin
+and is not: tsup depends on `^0.27.0`, and the 0.27 line carries
+[GHSA-g7r4-m6w7-qqqr](https://github.com/advisories/GHSA-g7r4-m6w7-qqqr), so removing the override
+brings the advisory straight back into `npm audit`. It is build-time only and never reaches
+consumers. JSON cannot hold a comment, which is why the reason is recorded here.

@@ -1,5 +1,5 @@
 ---
-'renderready': minor
+'renderready': major
 ---
 
 Initial release.
@@ -18,3 +18,5 @@ fully rendered DOM with scripts stripped and the origin's status code preserved.
 - A single Chromium process with a fresh browser context per render for real cookie isolation, plus
   recycling on render count and age, and crash recovery.
 - Four lifecycle hooks for caching, metrics and per-site fixups.
+- Two runtime dependencies, `playwright-core` and `fastify`. Configuration validation is
+  hand-written rather than schema-driven so the package adds nothing else to your install tree.
