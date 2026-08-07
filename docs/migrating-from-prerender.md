@@ -1,8 +1,14 @@
 # Migrating from `prerender/prerender`
 
 As of this writing, [`prerender/prerender`](https://github.com/prerender/prerender) returns a 404 —
-the repository is gone. If you have a deployment running it, it will keep working until the
-machine it's on dies, but you're on unmaintained software with no path to a security fix.
+the source repository is gone. The [npm package](https://www.npmjs.com/package/prerender) still
+resolves and installs (last published 2024-09-12), so existing deployments and fresh installs both
+keep working. What you lose is a path to a fix: no repository means no security patches, and no fix
+for the one crash-recovery gap in its own design — if Chrome dies twice within a second of each
+other, the old server calls `process.exit()` and depends on an external supervisor to bring it back,
+with no retry loop of its own. Its browser recycling is otherwise reasonable: it restarts an idle
+browser automatically, and restarts on a fixed schedule too if you use the documented `server.js`
+entry point (or register the `browserForceRestart` plugin yourself on a custom build).
 
 The good news: renderready is behaviour-compatible with almost everything the old server did. Most
 migrations are a URL change and an environment-variable rename, not an application rewrite.
