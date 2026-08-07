@@ -69,14 +69,14 @@ Response-side: `x-prerender-504-reason` is now `x-renderready-error`, and `x-pre
 
 Most names are unchanged. The ones that moved:
 
-| Old                           | New                        |
-| ----------------------------- | -------------------------- |
-| `CHROME_LOCATION`             | `CHROME_PATH`              |
-| `RENDERING_ERROR_STATUS_CODE` | `RENDER_ERROR_STATUS_CODE` |
-| `PRERENDER_READY_DELAY`\*     | `RENDER_READY_DELAY`       |
+| Old                                 | New                        |
+| ------------------------------------ | -------------------------- |
+| `chromeLocation` (JS option)\*       | `CHROME_PATH`              |
+| `RENDERING_ERROR_STATUS_CODE`        | `RENDER_ERROR_STATUS_CODE` |
+| `prerenderReadyDelay` (JS option)\*  | `RENDER_READY_DELAY`       |
 
-\* the old server didn't have this env var; only the `prerenderReadyDelay` option existed. Its
-environment-variable form is new.
+\* neither of these was ever an environment variable in the old server — only a JS constructor
+option existed. Both gained an environment-variable form for the first time in renderready.
 
 `PORT`, `WAIT_AFTER_LAST_REQUEST`, `PAGE_DONE_CHECK_INTERVAL`, `PAGE_LOAD_TIMEOUT`,
 `FOLLOW_REDIRECTS`, `TIMEOUT_STATUS_CODE`, `ALLOWED_DOMAINS`, `BASIC_AUTH_USERNAME`,
@@ -98,10 +98,13 @@ list — and gives you [four hooks](../README.md#hooks) for the rest.
 | `sendPrerenderHeader`   | `originHeaders`, on by default                                        |
 | `blockResources`        | `blockedResourceTypes` / `blockedUrlPatterns`                         |
 | `browserForceRestart`   | `recycleAfterMs` (age-based recycling is on by default, not opt-in)   |
-| in-memory / S3 cache    | no built-in cache — see [Adding a cache](../README.md#adding-a-cache) |
 
 The two behavioural defaults worth double-checking: script stripping and meta-directive handling
 were things you had to register a plugin for; in renderready they're on unless you turn them off.
+
+Caching was never bundled in the old server either — the README listed an `s3-html-cache` plugin
+as "coming soon," but it was never published. renderready doesn't ship a cache either; see
+[Adding a cache](../README.md#adding-a-cache) if you want to add one.
 
 ## What's gone
 
@@ -131,8 +134,11 @@ npx playwright install chromium
 - [ ] Rename `prerender-status-code` / `prerender-header` meta tags.
 - [ ] Update any code branching on the `X-Prerender` request header or `x-prerender-*` response
       headers.
-- [ ] Rename `CHROME_LOCATION` → `CHROME_PATH` and `RENDERING_ERROR_STATUS_CODE` →
-      `RENDER_ERROR_STATUS_CODE` in your environment.
+- [ ] Convert the `chromeLocation` constructor option (if you set one) to the `CHROME_PATH` env
+      var, and rename `RENDERING_ERROR_STATUS_CODE` → `RENDER_ERROR_STATUS_CODE` in your
+      environment.
 - [ ] Run `npx playwright install chromium` instead of relying on a system Chrome install.
-- [ ] If you used `blockResources`, `browserForceRestart`, or a cache plugin, read the
-      corresponding option/section above — behaviour is similar but the defaults differ.
+- [ ] If you used `blockResources` or `browserForceRestart`, read the corresponding option above —
+      behaviour is similar but the defaults differ. If you relied on caching, see
+      [Adding a cache](../README.md#adding-a-cache) — the old server's cache was never actually
+      bundled either.

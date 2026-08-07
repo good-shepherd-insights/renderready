@@ -20,9 +20,12 @@ query-encoding the URL. There's no way to make the query form accept a raw, unen
 path; `?` and `&` inside the target URL would otherwise be ambiguous with the request's own query
 string.
 
-`?mobile` becomes a `width`/`height` override on the request, or set `viewportWidth` /
-`viewportHeight` to your mobile dimensions and use two separately-configured instances if you
-render both.
+`?mobile` did two things: it set mobile viewport dimensions and switched Rendertron's own
+User-Agent to a mobile string. The dimensions map to a `width`/`height` override on the request
+(or `viewportWidth`/`viewportHeight` if you run separately-configured instances for mobile and
+desktop); the User-Agent swap maps to the `userAgent` override — set it explicitly if your app
+does UA-sniffing to decide what markup or styles to serve, since changing the viewport size alone
+won't trigger that logic.
 
 ## Readiness — this is the good news
 
