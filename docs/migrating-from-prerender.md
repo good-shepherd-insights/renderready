@@ -70,10 +70,10 @@ Response-side: `x-prerender-504-reason` is now `x-renderready-error`, and `x-pre
 Most names are unchanged. The ones that moved:
 
 | Old                                 | New                        |
-| ------------------------------------ | -------------------------- |
-| `chromeLocation` (JS option)\*       | `CHROME_PATH`              |
-| `RENDERING_ERROR_STATUS_CODE`        | `RENDER_ERROR_STATUS_CODE` |
-| `prerenderReadyDelay` (JS option)\*  | `RENDER_READY_DELAY`       |
+| ----------------------------------- | -------------------------- |
+| `chromeLocation` (JS option)\*      | `CHROME_PATH`              |
+| `RENDERING_ERROR_STATUS_CODE`       | `RENDER_ERROR_STATUS_CODE` |
+| `prerenderReadyDelay` (JS option)\* | `RENDER_READY_DELAY`       |
 
 \* neither of these was ever an environment variable in the old server — only a JS constructor
 option existed. Both gained an environment-variable form for the first time in renderready.
@@ -88,16 +88,16 @@ The old server used a `server.use(plugin)` system with nine bundled plugins. ren
 common ones into options — see the [README options tables](../README.md#options) for the full
 list — and gives you [four hooks](../README.md#hooks) for the rest.
 
-| Plugin                  | renderready equivalent                                                |
-| ----------------------- | --------------------------------------------------------------------- |
-| `whitelist`/`blacklist` | `allowedDomains` / `blockedDomains`                                   |
-| `basicAuth`             | `basicAuth` option                                                    |
-| `removeScriptTags`      | `removeScriptTags` option, `true` by default (was opt-in)             |
-| `httpHeaders`           | `metaStatusCode` option, `true` by default (was opt-in)               |
-| `addMetaTags`           | `injectRenderMeta` option, `false` by default                         |
-| `sendPrerenderHeader`   | `originHeaders`, on by default                                        |
-| `blockResources`        | `blockedResourceTypes` / `blockedUrlPatterns`                         |
-| `browserForceRestart`   | `recycleAfterMs` (age-based recycling is on by default, not opt-in)   |
+| Plugin                  | renderready equivalent                                              |
+| ----------------------- | ------------------------------------------------------------------- |
+| `whitelist`/`blacklist` | `allowedDomains` / `blockedDomains`                                 |
+| `basicAuth`             | `basicAuth` option                                                  |
+| `removeScriptTags`      | `removeScriptTags` option, `true` by default (was opt-in)           |
+| `httpHeaders`           | `metaStatusCode` option, `true` by default (was opt-in)             |
+| `addMetaTags`           | `injectRenderMeta` option, `false` by default                       |
+| `sendPrerenderHeader`   | `originHeaders`, on by default                                      |
+| `blockResources`        | `blockedResourceTypes` / `blockedUrlPatterns`                       |
+| `browserForceRestart`   | `recycleAfterMs` (age-based recycling is on by default, not opt-in) |
 
 The two behavioural defaults worth double-checking: script stripping and meta-directive handling
 were things you had to register a plugin for; in renderready they're on unless you turn them off.
