@@ -51,6 +51,8 @@ works on sites you do not control instead of only ones you have instrumented.
 - [Concurrency and capacity](#concurrency-and-capacity)
 - [Security](#security)
 - [Compatibility](#compatibility)
+  - [Migrating from `prerender/prerender`](docs/migrating-from-prerender.md)
+  - [Migrating from Rendertron](docs/migrating-from-rendertron.md)
 - [Requirements](#requirements)
 - [Contributing](#contributing)
 
@@ -499,9 +501,6 @@ package can honestly promise. Use `allowedDomains` or a network policy.
 renderer exploit is not contained by the sandbox. If you render untrusted URLs, run the service in
 its own container with a seccomp profile and no network access beyond what it needs.
 
-To report a vulnerability, please open a draft security advisory on GitHub rather than a public
-issue.
-
 ## Compatibility
 
 Deliberately **not** included, so you know what to expect:
@@ -516,7 +515,11 @@ Deliberately **not** included, so you know what to expect:
 
 If you are moving from another prerendering service, the two things to check are that your
 application sets `window.renderReady` (or relies on network quiet, which needs no changes) and that
-any soft-404 meta tags use the `renderready-` prefix documented above.
+any soft-404 meta tags use the `renderready-` prefix documented above. Dedicated guides:
+
+- [Migrating from `prerender/prerender`](docs/migrating-from-prerender.md) — the repository now
+  returns a 404.
+- [Migrating from Rendertron](docs/migrating-from-rendertron.md) — archived since October 2022.
 
 ## Requirements
 
