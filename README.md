@@ -501,9 +501,6 @@ package can honestly promise. Use `allowedDomains` or a network policy.
 renderer exploit is not contained by the sandbox. If you render untrusted URLs, run the service in
 its own container with a seccomp profile and no network access beyond what it needs.
 
-To report a vulnerability, please open a draft security advisory on GitHub rather than a public
-issue.
-
 ## Compatibility
 
 Deliberately **not** included, so you know what to expect:

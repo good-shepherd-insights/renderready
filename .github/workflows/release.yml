@@ -51,4 +51,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # No NODE_AUTH_TOKEN and no NPM_TOKEN: publishing authenticates with
           # the OIDC token from `id-token: write`. This requires a one-time
-          # setup on npmjs.com — see .github/PUBLISHING.md.
+          # setup on npmjs.com
