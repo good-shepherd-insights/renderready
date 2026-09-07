@@ -38,7 +38,7 @@ jobs:
       - run: npm install --global npm@latest
 
       - name: Create a release PR, or publish if one was merged
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
           # When changesets are pending, this opens or updates a PR that bumps
           # the version and writes the changelog. When that PR is merged and no
