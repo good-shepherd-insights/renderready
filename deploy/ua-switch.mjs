@@ -24,7 +24,7 @@ function pipeTo(upstreamHost, upstreamPort, req, res) {
 
 function prerender(host, res) {
   const url = conf.render.urlTemplate.replace('{host}', host);
-  http.get(url, { headers: { 'x-renderready-via': 'ua-switch' } }, (rr) => {
+  http.get(url, { headers: conf.render.headers }, (rr) => {
     let size = 0;
     const chunks = [];
     rr.on('data', (c) => { chunks.push(c); size += c.length; });
