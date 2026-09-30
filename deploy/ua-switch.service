@@ -5,7 +5,8 @@ Wants=network-online.target
 
 [Service]
 WorkingDirectory=%h/renderready/deploy
-ExecStart=/usr/bin/node ua-switch.mjs
+EnvironmentFile=/etc/renderready/nodepath.env
+ExecStart=${NODE_BIN} ua-switch.mjs
 Environment=NODE_ENV=production
 Environment=UA_SWITCH_CONF=/etc/renderready/ua-switch.conf.json
 Restart=always
