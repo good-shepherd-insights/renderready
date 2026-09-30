@@ -4,9 +4,9 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-WorkingDirectory=%h/renderready/deploy
+WorkingDirectory=/home/dev/renderready/deploy
 EnvironmentFile=/etc/renderready/nodepath.env
-ExecStart=${NODE_BIN} renderready-service.mjs
+ExecStart=/bin/sh -c 'exec $NODE_BIN renderready-service.mjs'
 Environment=NODE_ENV=production
 Environment=RENDERREADY_CONF=/etc/renderready/renderready.conf.json
 Restart=always
