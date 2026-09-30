@@ -1,0 +1,8 @@
+{
+  "port": 8610,
+  "bind": "0.0.0.0",
+  "appDefault": null,
+  "crawlerRegex": "googlebot|bingbot|duckduckbot|baiduspider|yandexbot|sogou|slurp|facebookexternalhit|twitterbot|linkedinbot|lighthouse|pagespeed|WebPageTest|bot|spider|crawler",
+  "render": { "urlTemplate": "http://127.0.0.1:3305/render?url=https%3A%2F%2F{host}%2F", "timeoutMs": 60000, "headers": {} },
+  "appsFile": "./ua-switch-apps.json"
+}

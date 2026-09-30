@@ -1,0 +1,16 @@
+[Unit]
+Description=renderready prerender service (crawler HTML for all tunnel apps)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/home/dev/renderready/deploy
+EnvironmentFile=/etc/renderready/nodepath.env
+ExecStart=/bin/sh -c 'exec $NODE_BIN renderready-service.mjs'
+Environment=NODE_ENV=production
+Environment=RENDERREADY_CONF=/etc/renderready/renderready.conf.json
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

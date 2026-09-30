@@ -1,0 +1,16 @@
+[Unit]
+Description=ua-switch: crawler/human router for all tunnel apps
+After=network-online.target renderready.service
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/home/dev/renderready/deploy
+EnvironmentFile=/etc/renderready/nodepath.env
+ExecStart=/bin/sh -c 'exec $NODE_BIN ua-switch.mjs'
+Environment=NODE_ENV=production
+Environment=UA_SWITCH_CONF=/etc/renderready/ua-switch.conf.json
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
