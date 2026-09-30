@@ -1,0 +1,12 @@
+[Unit]
+Description=renderready prerender service (Streamlit crawler HTML)
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/node %h/Documents/codes/renderready-streamlit-test/renderready-service.mjs
+Restart=on-failure
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
