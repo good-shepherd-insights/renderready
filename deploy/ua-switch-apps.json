@@ -1,4 +1,6 @@
 {
-  "r780badk.marylandinsights.com": { "host": "127.0.0.1", "port": 8504 },
-  "livefire.marylandinsights.com": { "host": "127.0.0.1", "port": 8504 }
+  "r780badk.marylandinsights.com": {
+    "host": "127.0.0.1",
+    "port": 8504
+  }
 }
