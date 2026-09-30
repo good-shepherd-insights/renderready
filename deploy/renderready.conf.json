@@ -1,0 +1,9 @@
+{
+  "port": 3305,
+  "host": "127.0.0.1",
+  "allowedDomains": ["127.0.0.1", "localhost", "r780badk.marylandinsights.com", "livefire.marylandinsights.com"],
+  "waitAfterLastRequest": 8000,
+  "pageLoadTimeout": 30000,
+  "browserRelaunchWaitMs": 60000,
+  "bridge": true
+}

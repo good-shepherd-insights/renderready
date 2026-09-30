@@ -1,12 +1,15 @@
 [Unit]
-Description=renderready prerender service (Streamlit crawler HTML)
+Description=renderready prerender service (crawler HTML for all tunnel apps)
 After=network-online.target
+Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/node %h/Documents/codes/renderready-streamlit-test/renderready-service.mjs
-Restart=on-failure
-RestartSec=3
+WorkingDirectory=%h/renderready/deploy
+ExecStart=/usr/bin/node renderready-service.mjs
 Environment=NODE_ENV=production
+Environment=RENDERREADY_CONF=/etc/renderready/renderready.conf.json
+Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
