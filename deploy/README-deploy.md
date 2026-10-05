@@ -17,6 +17,20 @@ Routing model:
 ## Operational values policy
 No addresses, ports, domains, regexes, or timeouts appear in code. The two JSON files plus the systemd unit are the only places they exist. Code reads: UA_SWITCH_CONF env var or the file adjacent to the module.
 
+## The renderready package must not live in /tmp
+`renderready-service.mjs` resolves the package in this order:
+
+1. `RENDERREADY_PKG_DIR` env var (set in `nodepath.env`)
+2. `<repo>/pkg` (default, `../pkg` relative to this file)
+3. `/tmp/renderready-test` (legacy fallback)
+
+`/tmp` is tmpfs. A reboot wipes it, the unit dies on an unresolvable `require`,
+and `Restart=always` turns that into a crash loop. The deployed unit passes
+`RENDERREADY_PKG_DIR` in `nodepath.env`; keep the package on disk at that path
+(`npm install renderready@^1.0.0`). The service exits 1 naming every path it
+tried if the package is missing everywhere, instead of throwing a bare module
+error.
+
 ## Verification protocol
 Each behavior verified live per rules in the PR body:
 - crawler path: response marked by renderready render id, no timed-out header
